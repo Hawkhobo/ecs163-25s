@@ -1,5 +1,6 @@
 export function createHist(svg, data, options) {
   const {margin, width, height, xPosition, yPosition } = options;
+
   const g = svg.append("g")
       .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.right})`);
 
@@ -33,7 +34,7 @@ export function createHist(svg, data, options) {
     .attr("y", d => yScale(d.keyword))
     .attr("width", d => xScale(d.count))
     .attr("height", yScale.bandwidth())
-    .attr("fill", "steelblue");
+    .attr("fill", "purple");
 
   g.selectAll(".label")
     .data(histData)
@@ -41,7 +42,7 @@ export function createHist(svg, data, options) {
     .attr("class", "label")
     .attr("x", d => xScale(d.count) + 5)
     .attr("y", d => yScale(d.keyword) + yScale.bandwidth() / 2)
-    .attr("dy", "0.35em")
+    .attr("dy", "0.15")
     .text(d => d.count);
 
   return g; 

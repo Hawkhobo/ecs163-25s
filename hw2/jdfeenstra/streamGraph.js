@@ -74,27 +74,33 @@ export function createStream(svg, data, options) {
   g.append("g")
       .call(d3.axisLeft(y));
 
-  // Create legend
-    const legend = g.append("g")
-        .attr("transform", `translate(${width + 30}, -30)`) 
+    // Create legend
+      const legendScaleFactor = 0.6; // Adjust this value to control the scaling (e.g., 0.8 for 80%, 0.6 for 60%)
+      const originalRectSize = 12; // Keep the original size for calculations
+      const originalSpacing = 6;
+      const originalVerticalSpacing = 10;
+
+      const legend = g.append("g")
+        .attr("transform", `translate(${width + 20}, -20) scale(${legendScaleFactor})`) // Apply the scale transform
         .selectAll(".legend")
         .data(layers)
         .enter().append("g")
         .attr("class", "legend")
-        .attr("transform", (d, i) => `translate(0, ${i * 15})`);
+        .attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)})`); // Use original spacing for positioning
 
-    legend.append("rect")
+      legend.append("rect")
         .attr("x", 0)
-        .attr("y", 5)
-        .attr("width", 10)
-        .attr("height", 10)
+        .attr("y", 0)
+        .attr("width", originalRectSize)
+        .attr("height", originalRectSize)
         .attr("fill", d => d.color);
 
-    legend.append("text")
-        .attr("x", 18)
-        .attr("y", 9)
+      legend.append("text")
+        .attr("x", originalRectSize + originalSpacing)
+        .attr("y", originalRectSize / 2)
         .attr("dy", "0.35em")
+        .style("font-size", "1em") // Keep font size at 1em and let the scale handle it
         .text(d => d.key);
 
-  return g;
+      return g;
 }

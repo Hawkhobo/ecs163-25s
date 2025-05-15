@@ -6,18 +6,18 @@ const width = window.innerWidth;
 const height = window.innerHeight;
 
 let histX = 30;
-let histY = 10;
+let histY = 30;
 let histWidth = 600;
 let histHeight = 850;
 let histMargin = {top: 10, right: 30, bottom: 30, left: 60};
 
-let pieRadius = Math.min(600, 600) / 2 - 50;
-let pieLeft = 700, pieTop = 400;
+let pieRadius = Math.min(500, 500) / 2 - 50;
+let pieLeft = 1100, pieTop = 400;
 
 let streamX = 700;
-let streamY = 10;
-let streamWidth = 800;
-let streamHeight = 300;
+let streamY = 50;
+let streamWidth = 700;
+let streamHeight = 200;
 let streamMargin = { top: 20, right: 30, bottom: 30, left: 50 };
 
 const csvFilePath = 'List_of_Historical_Ballot_Measures.csv';
@@ -114,7 +114,22 @@ d3.csv(csvFilePath)
     console.log("Histogram:", JSON.stringify(histData, null, 2));
     console.log("Measure Pops:", JSON.stringify(subjectVotes, null, 2));
     console.log("Stream Graph:", JSON.stringify(streamGraphData, null, 2));
-    
+
+      const headerGroup = svg.append("g")
+    .attr("transform", `translate(${width / 2}, 30)`); // Position the header group
+
+  headerGroup.append("text")
+    .attr("text-anchor", "middle")
+    .style("font-size", "2em")
+    .style("font-weight", "bold")
+    .text("Bay Area Ballot Measures Dashboard");
+
+  headerGroup.append("text")
+    .attr("text-anchor", "middle")
+    .attr("y", 30) 
+    .style("font-size", "1em")
+    .text("A visualization of historical ballot measures and their key topics.");
+
     // Plot 1: Histogram
     createHist(svg, filteredKeywordCounts, {
       margin: histMargin,
