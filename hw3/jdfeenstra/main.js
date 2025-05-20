@@ -1,24 +1,8 @@
 import { createHist } from './histPlot.js';
 import { createPie } from './piePlot.js';
 import { createStream } from './streamGraph.js';
-
-const width = window.innerWidth;
-const height = window.innerHeight;
-
-let histX = 30;
-let histY = 30;
-let histWidth = 600;
-let histHeight = 850;
-let histMargin = {top: 10, right: 30, bottom: 30, left: 60};
-
-let pieRadius = Math.min(500, 500) / 2 - 50;
-let pieLeft = 1100, pieTop = 400;
-
-let streamX = 700;
-let streamY = 50;
-let streamWidth = 700;
-let streamHeight = 200;
-let streamMargin = { top: 20, right: 30, bottom: 30, left: 50 };
+import { processData } from './processData.js';
+import { width, height, histX, histY, histWidth, histHeight, histMargin, pieRadius, pieLeft, pieTop,streamX, streamY, streamWidth, streamHeight, streamMargin } from './dimensions.js';
 
 const csvFilePath = 'List_of_Historical_Ballot_Measures.csv';
 
@@ -30,105 +14,22 @@ const svg = d3.select("body").append("svg")
 d3.csv(csvFilePath)
   // keyword values
   .then(data => {
-    const keywordColumns = ['Keyword1', 'Keyword2', 'Keyword3', 'Keyword4', 'Keyword5'];
-    const keywordCounts = {};
-    const filteredKeywordCounts = {};
-    const subjectVotes = {};
+    const { histData, subjectVotes, streamGraphData, keywordCounts, filteredKeywordCounts, topKeywords } = processData(data);
 
-    data.forEach(row => {
-      // generate key-value pair containing all unique Keyword1-5's from csv
-      keywordColumns.forEach(column => {
-        const keyword = row[column] ? row[column].trim() : null;
-        if (keyword) {
-          keywordCounts[keyword] = (keywordCounts[keyword] || 0) + 1;
-        }
-      });
+    const headerGroup = svg.append("g")
+      .attr("transform", `translate(${width / 2}, 30)`); // Position the header group
 
-      // determine totalVotes, given a ballot.
-      const subject = row.Subject.trim();
-      const yesVotes = +row['Yes Votes'];
-      const noVotes = +row['No Votes'];
-      const totalVotes = yesVotes + noVotes;
+    headerGroup.append("text")
+      .attr("text-anchor", "middle")
+      .style("font-size", "2em")
+      .style("font-weight", "bold")
+      .text("Bay Area Ballot Measures Dashboard");
 
-      // create subjectVotes key-value pair.
-      // Subject => passFail, totalVotes, most popular keyword (Keyword1-5)
-      subjectVotes[subject] = (subjectVotes[subject] || { total: 0, keywords: [], passFail: row['Pass or Fail'] });
-      subjectVotes[subject].total += totalVotes;
-      keywordColumns.forEach(col => {
-        const keyword = row[col] ? row[col].trim() : null;
-        if (keyword) {
-          subjectVotes[subject].keywords.push(keyword);
-        }
-      });
-      subjectVotes[subject].passFail = row['Pass or Fail'];
-
-    }); 
-
-    // filter out keywords with 3 or less occurrences, since the data has an abundance of outliers.
-    for (const keyword in keywordCounts) {
-      if (keywordCounts.hasOwnProperty(keyword) && keywordCounts[keyword] > 3) {
-        filteredKeywordCounts[keyword] = keywordCounts[keyword];
-      }
-    }
-
-    // prepare histogram data here (also works for pie chart)
-    const histData = Object.entries(filteredKeywordCounts).map(([key, value]) => ({
-      keyword: key,
-      count: value
-    }));
-    histData.sort((a, b) => b.count - a.count);
-
-   // Prepare data for stream graph
-    const topKeywords = Object.entries(keywordCounts)
-        .sort(([, countA], [, countB]) => countB - countA)
-        .slice(0, 30)
-        .map(([keyword]) => keyword);
-
-    // prepare data for stream graph
-   const streamGraphData = topKeywords.map(keyword => {
-          const keywordData = {
-              keyword: keyword,
-              years: []
-          };
-          data.forEach(row => {
-              const year = +row.Year;
-              let keywordCount = 0;
-              keywordColumns.forEach(col => {
-                  if (row[col]?.trim() === keyword) {
-                      keywordCount++;
-                  }
-              });
-              // Check if year already exists.
-              const existingYearData = keywordData.years.find(y => y.year === year);
-              if (existingYearData) {
-                existingYearData.count += keywordCount;
-              }
-              else {
-                keywordData.years.push({ year: year, count: keywordCount });
-              }
-
-          });
-          return keywordData;
-      });
-
-    console.log("Histogram:", JSON.stringify(histData, null, 2));
-    console.log("Measure Pops:", JSON.stringify(subjectVotes, null, 2));
-    console.log("Stream Graph:", JSON.stringify(streamGraphData, null, 2));
-
-      const headerGroup = svg.append("g")
-    .attr("transform", `translate(${width / 2}, 30)`); // Position the header group
-
-  headerGroup.append("text")
-    .attr("text-anchor", "middle")
-    .style("font-size", "2em")
-    .style("font-weight", "bold")
-    .text("Bay Area Ballot Measures Dashboard");
-
-  headerGroup.append("text")
-    .attr("text-anchor", "middle")
-    .attr("y", 30) 
-    .style("font-size", "1em")
-    .text("A visualization of historical ballot measures and their key topics.");
+    headerGroup.append("text")
+      .attr("text-anchor", "middle")
+      .attr("y", 30) 
+      .style("font-size", "1em")
+      .text("A visualization of historical ballot measures and their key topics.");
 
     // Plot 1: Histogram
     createHist(svg, filteredKeywordCounts, {
