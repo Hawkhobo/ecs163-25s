@@ -2,7 +2,8 @@ export function createHist(svg, data, options) {
   const {margin, width, height, xPosition, yPosition } = options;
 
   const g = svg.append("g")
-      .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.right})`);
+      .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.right})`)
+      .style("display", "none"); // initially hidden
 
   const histData = Object.entries(data).map(([key, value]) => ({
     keyword: key,
