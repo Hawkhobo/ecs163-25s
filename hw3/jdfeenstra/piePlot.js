@@ -28,12 +28,11 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
       };
   });
 
-  console.log("Pie Chart:", JSON.stringify(subjectVoteArray, null, 4));
+    console.log("Pie Chart:", JSON.stringify(subjectVoteArray, null, 4));
 
   const { radius, left, top } = options;
   const g = svg.append("g")
-      .attr("transform", `translate(${left + radius}, ${top + radius})`)
-      .style("display", "none"); // initially hidden
+      .attr("transform", `translate(${left + radius}, ${top + radius})`);
 
   const pie = d3.pie()
     .value(d => d.totalVotes);
@@ -103,12 +102,8 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
       .attr("dy", (d, i) => i === 0 ? 0 : 0.01 + "em") // Adjust vertical offset for subsequent lines
       .text(d => d);
 
-  // offset legend to the left of the pie chart
-  const legendX = -radius - 200;
-  const legendY = -radius;
-
-  const legend = g.append("g")
-    .attr("transform", `translate(${legendX}, ${legendY})`);
+  const legend = svg.append("g")
+    .attr("transform", `translate(${left + radius - 700}, ${top})`);
 
   const uniqueKeywords = [...new Set(subjectVoteArray.map(d => d.topKeyword))];
   legend.selectAll(".legend-item")
