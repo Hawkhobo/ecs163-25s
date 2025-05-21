@@ -9,7 +9,7 @@
 
  export const pieRadius = Math.min(500, 500) / 2 - 50;
  export const pieLeft = 1100;
- export const pieTop = 400;
+ export const pieTop = 500;
 
  export const streamX = 700;
  export const streamY = 50;

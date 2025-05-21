@@ -41,13 +41,20 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
     .innerRadius(0)
     .outerRadius(radius);
 
-  const outerArc = d3.arc()
-    .innerRadius(radius * 1.1)
-    .outerRadius(radius * 1.1);
-
   const colorScale = d3.scaleOrdinal()
     .domain(subjectVoteArray.map(d => d.topKeyword))
     .range(d3.schemeCategory10);
+
+  const tooltip = d3.select("body").append("div")
+    .attr("class", "pie-tooltip") 
+    .style("opacity", 0)
+    .style("position", "absolute")
+    .style("background-color", "white")
+    .style("border", "solid")
+    .style("border-width", "1px")
+    .style("border-radius", "5px")
+    .style("padding", "8px")
+    .style("pointer-events", "none"); 
 
   g.selectAll(".arc")
     .data(pie(subjectVoteArray))
@@ -56,54 +63,42 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
     .attr("fill", d => colorScale(d.data.topKeyword))
     .attr("class", "arc")
     .attr("stroke", "black") 
-    .attr("stroke-width", 1); 
+    .attr("stroke-width", 1) 
+    .on("mouseover", function(event, d) {
+          // Bring the hovered arc to the front to ensure tooltip is not obscured
+          d3.select(this).raise();
 
-  const labelPadding = 5;
-  const maxLabelWidth = 70;
+          tooltip.transition()
+            .duration(200)
+            .style("opacity", .9);
 
-  g.selectAll(".pie-label")
-    .data(pie(subjectVoteArray))
-    .enter().append("text")
-    .attr("class", "pie-label")
-    .attr("transform", function(d) {
-      const midAngle = (d.startAngle + d.endAngle) / 2;
-      const x = radius * 1.45 * Math.cos(midAngle - Math.PI / 2);
-      const y = radius * 1.45 * Math.sin(midAngle - Math.PI / 2);
-      return `translate(${x},${y})`;
-    })
-    .style("text-anchor", function(d) {
-      const midAngle = (d.startAngle + d.endAngle) / 2;
-      return midAngle < Math.PI ? 'start' : 'end';
+          // Construct tooltip content. 'd.data.subject' name of measure,
+          // and 'd.data.totalVotes' is the total votes.
+          tooltip.html(`<strong>${d.data.subject}</strong><br/>
+                        Total Votes: <strong>${d.data.totalVotes}</strong><br/>
+                        Status: ${d.data.passFail}<br/>
+                        Top Keyword: ${d.data.topKeyword || 'N/A'}`)
+            .style("left", (event.pageX + 15) + "px") // Position next to mouse
+            .style("top", (event.pageY - 28) + "px");
 
-    })
-    .style("font-size", "0.6em")
-    .style("font-family", "Arial, sans-serif")
-    .selectAll("tspan")
-    .data(d => {
-        const words = d.data.subject.split(/\s+/g);
-        const lines = [];
-        let currentLine = '';
-        words.forEach(word => {
-          const testLine = currentLine ? `${currentLine} ${word}` : word;
-          if (testLine.length > maxLabelWidth) {
-            lines.push(currentLine);
-            currentLine = word;
-          } else {
-            currentLine = testLine;
-          }
+          // highlight the arc
+          d3.select(this)
+            .style("stroke-width", 2)
+            .style("stroke", "darkblue");
+        })
+        .on("mouseout", function(event, d) {
+          tooltip.transition()
+            .duration(500)
+            .style("opacity", 0);
+
+          // remove highlight
+          d3.select(this)
+            .style("stroke-width", 1)
+            .style("stroke", "black");
         });
-        lines.push(currentLine);
-        lines.push(`(${d.data.totalVotes} total votes)`);
-        return lines;
-      })
-      .enter().append("tspan")
-      .attr("x", 0)
-      .attr("y", (d, i) => i * 1.1 + "em") // Adjust line spacing
-      .attr("dy", (d, i) => i === 0 ? 0 : 0.01 + "em") // Adjust vertical offset for subsequent lines
-      .text(d => d);
 
-  const legend = svg.append("g")
-    .attr("transform", `translate(${left + radius - 700}, ${top})`);
+  const legend = g.append("g")
+    .attr("transform", `translate(-325, -${radius})`);
 
   const uniqueKeywords = [...new Set(subjectVoteArray.map(d => d.topKeyword))];
   legend.selectAll(".legend-item")
