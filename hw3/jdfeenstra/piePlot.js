@@ -98,7 +98,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
         });
 
   const legend = g.append("g")
-    .attr("transform", `translate(-325, -${radius})`);
+    .attr("transform", `translate(-375, -${radius})`);
 
   const uniqueKeywords = [...new Set(subjectVoteArray.map(d => d.topKeyword))];
   legend.selectAll(".legend-item")

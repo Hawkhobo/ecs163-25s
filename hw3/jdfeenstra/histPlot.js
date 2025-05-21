@@ -10,18 +10,17 @@ export function createHist(svg, data, options) {
   }));
   histData.sort((a, b) => b.count - a.count);
 
-  const yScale = d3.scaleBand()
+  const xScale = d3.scaleBand()
     .domain(histData.map(d => d.keyword))
-    .range([0, height])
+    .range([0, width])
     .padding(0.1);
 
-  const xScale = d3.scaleLinear()
+  const yScale = d3.scaleLinear()
     .domain([0, d3.max(histData, d => d.count)])
-    .range([0, width]);
+    .range([0, height]);
 
   g.append("g")
-    .attr("transform", `translate(0, ${height})`)
-    .call(d3.axisBottom(xScale));
+    .call(d3.axisLeft(yScale));
 
   // create a tooltip that is initially hidden
   const tooltip = d3.select("body").append("div")
@@ -39,10 +38,10 @@ export function createHist(svg, data, options) {
     .data(histData)
     .enter().append("rect")
     .attr("class", "bar")
-    .attr("x", 0)
-    .attr("y", d => yScale(d.keyword))
-    .attr("width", d => xScale(d.count))
-    .attr("height", yScale.bandwidth())
+    .attr("x", d => xScale(d.keyword))
+    .attr("width", xScale.bandwidth())
+    .attr("y", 0)
+    .attr("height", d => yScale(d.count))
     .attr("fill", "purple")
     .on("mouseover", function(event, d) {
       tooltip.transition()
