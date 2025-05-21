@@ -74,16 +74,18 @@ export function createStream(svg, data, options) {
   g.append("g")
       .call(d3.axisLeft(y));
 
+  const reversedLayers = [...layers].reverse();
+
     // Create legend
-      const legendScaleFactor = 0.6; // Adjust this value to control the scaling (e.g., 0.8 for 80%, 0.6 for 60%)
+      const legendScaleFactor = 0.75; // Adjust this value to control the scaling (e.g., 0.8 for 80%, 0.6 for 60%)
       const originalRectSize = 12; // Keep the original size for calculations
       const originalSpacing = 6;
       const originalVerticalSpacing = 10;
 
       const legend = g.append("g")
-        .attr("transform", `translate(${width + 20}, -20) scale(${legendScaleFactor})`) // Apply the scale transform
+        .attr("transform", `translate(${width - 1425}, +15) scale(${legendScaleFactor})`) // Apply the scale transform
         .selectAll(".legend")
-        .data(layers)
+        .data(reversedLayers)
         .enter().append("g")
         .attr("class", "legend")
         .attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)})`); // Use original spacing for positioning
