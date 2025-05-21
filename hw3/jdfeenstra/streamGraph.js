@@ -1,8 +1,7 @@
 export function createStream(svg, data, options) {
   const { margin, width, height, xPosition, yPosition, topKeywords } = options;
   const g = svg.append("g")
-      .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`)
-      .style("display", "none"); // initially hidden
+      .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`);
 
   // Extract unique years from the data
   const years = Array.from(new Set(data.flatMap(d => d.years.map(y => y.year))));
