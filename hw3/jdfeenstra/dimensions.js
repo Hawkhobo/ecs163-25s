@@ -16,3 +16,11 @@
  export const streamWidth = 1400;
  export const streamHeight = 550;
  export const streamMargin = { top: 20, right: 30, bottom: 30, left: 50 };
+
+export const pieLegendXOffset = -370; 
+export const pieLegendYOffset = 0; 
+
+export const streamLegendXOffset = -1475; 
+export const streamLegendYOffset = 75; 
+export const streamRectSize = 8;
+export const legendScaleFactor = 0.8;

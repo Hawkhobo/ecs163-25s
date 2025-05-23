@@ -1,3 +1,5 @@
+import { pieLegendXOffset, pieLegendYOffset } from './dimensions.js'; // Add these imports
+
 export function createPie(svg, subjectVoteData, histData, allKeywordCounts, options) {
   const { radius, left, top, selectedKeyword, onPieClick, selectedKeywordColor } = options; // <--- Capture new option
 
@@ -95,7 +97,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
   // --- Pie Legend Rendering Logic ---
   const legendGroup = svg.select(".pie-legend");
   const legendG = legendGroup.empty() ? svg.append("g").attr("class", "pie-legend") : legendGroup;
-  legendG.attr("transform", `translate(${left + radius - 700}, ${top})`);
+  legendG.attr("transform", `translate(${left + radius + pieLegendXOffset}, ${top + pieLegendYOffset})`);
 
 
   if (selectedKeyword) {

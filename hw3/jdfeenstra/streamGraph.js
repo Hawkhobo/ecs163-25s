@@ -1,3 +1,5 @@
+import { streamLegendXOffset, streamLegendYOffset, legendScaleFactor, streamRectSize } from './dimensions.js'; // Add these imports
+
 export function createStream(svg, data, options) {
   const { margin, width, height, xPosition, yPosition, topKeywords, selectedKeyword, onStreamClick } = options;
 
@@ -10,7 +12,7 @@ export function createStream(svg, data, options) {
 
   const x = d3.scaleLinear().domain(d3.extent(years)).range([0, width]);
   const y = d3.scaleLinear().range([height, 0]);
-  const color = d3.scaleOrdinal(d3.schemeCategory10); // This is the color scale we need to return
+  const color = d3.scaleOrdinal(d3.schemeCategory10);
 
   const stackedDataInput = years.map(year => {
     const yearData = { year: year };
@@ -74,9 +76,10 @@ export function createStream(svg, data, options) {
       .attr("class", "layer")
       .attr("d", d => area(d.values))
       .attr("fill", d => d.color)
-      .attr("stroke", "black")
-      .attr("stroke-width", 0.1)
-      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0)
+      .attr("stroke", d => (selectedKeyword && d.key === selectedKeyword) ? "white" : "black")
+      .attr("stroke-width", d => (selectedKeyword && d.key === selectedKeyword) ? 2 : 0.1)
+      .style("filter", d => (selectedKeyword && d.key === selectedKeyword) ? "drop-shadow(3px 3px 2px rgba(0,0,0,0.4))" : null)
+      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.15 : 1.0)
       .classed("selected-stream", d => d.key === selectedKeyword)
       .on("click", function(event, d) {
           if (onStreamClick) {
@@ -86,46 +89,82 @@ export function createStream(svg, data, options) {
       .on("mouseover", function(event, d) {
           d3.select(this).raise();
           d3.select(this).style("cursor", "pointer");
+
+          // Apply temporary opacity change for hover effect
           if (!selectedKeyword) {
-            d3.select(this).style("fill-opacity", 0.7);
+            d3.select(this).style("opacity", 0.7);
           } else if (d.key === selectedKeyword) {
-            d3.select(this).style("fill-opacity", 0.7);
+            d3.select(this).style("opacity", 1.0);
           } else {
-            // No change for others
+            d3.select(this).style("opacity", 0.7);
           }
-          tooltip.transition()
-              .duration(200)
-              .style("opacity", .9);
+
+          // --- MODIFIED TOOLTIP LOGIC FOR MOUSEOVER ---
+          // If no keyword is selected, OR if the hovered stream IS the selected keyword, show tooltip.
+          // Otherwise (a keyword is selected, but this is NOT that keyword), do not show tooltip.
+          if (!selectedKeyword || d.key === selectedKeyword) {
+              tooltip.transition()
+                  .duration(200)
+                  .style("opacity", .9);
+          } else {
+              // If a stream IS selected, but this hovered stream is NOT the selected one, ensure tooltip is hidden.
+              tooltip.transition()
+                  .duration(0) // Fast transition to hide
+                  .style("opacity", 0);
+          }
       })
       .on("mousemove", function(event, d) {
-          const [gx, gy] = d3.pointer(event, g.node());
-          const invertedX = x.invert(gx);
+          // --- MODIFIED TOOLTIP LOGIC FOR MOUSEMOVE ---
+          // Only update tooltip position/content if no keyword is selected, OR if the hovered stream IS the selected keyword.
+          if (!selectedKeyword || d.key === selectedKeyword) {
+              const [gx, gy] = d3.pointer(event, g.node());
+              const invertedX = x.invert(gx);
 
-          const i = bisectYear(d.values, invertedX, 1);
-          const d0 = d.values[i - 1];
-          const d1 = d.values[i];
-          const dataPoint = (d1 && (invertedX - d0.data.year > d1.data.year - invertedX)) ? d1 : d0;
+              const i = bisectYear(d.values, invertedX, 1);
+              const d0 = d.values[i - 1];
+              const d1 = d.values[i];
+              const dataPoint = (d1 && (invertedX - d0.data.year > d1.data.year - invertedX)) ? d1 : d0;
 
-          if (dataPoint) {
-              const currentYear = dataPoint.data.year;
-              const currentValue = Math.round(dataPoint.y1 - dataPoint.y0);
+              // Ensure tooltip is visible and then update content/position
+              // This is crucial to handle cases where dataPoint might be null temporarily,
+              // or if mouseover didn't set opacity quickly enough.
+              tooltip.transition()
+                  .duration(50) // Short duration to appear quickly
+                  .style("opacity", .9);
 
-              tooltip.html(`Keyword: <strong>${d.key}</strong><br/>
-                            Year: <strong>${currentYear}</strong><br/>
-                            Count: <strong>${currentValue}</strong>`)
-                  .style("left", (event.pageX + 15) + "px")
-                  .style("top", (event.pageY - 28) + "px");
+              if (dataPoint) {
+                  const currentYear = dataPoint.data.year;
+                  const currentValue = Math.round(dataPoint.y1 - dataPoint.y0);
+
+                  tooltip.html(`Keyword: <strong>${d.key}</strong><br/>
+                                Year: <strong>${currentYear}</strong><br/>
+                                Count: <strong>${currentValue}</strong>`)
+                      .style("left", (event.pageX + 15) + "px")
+                      .style("top", (event.pageY - 28) + "px");
+              } else {
+                  // Optionally, clear tooltip content if no data is found at the specific point
+                  tooltip.html(`Keyword: <strong>${d.key}</strong><br/>No data for this year.`);
+              }
+          } else {
+              // If a stream IS selected, but this hovered stream is NOT the selected one, ensure tooltip is hidden.
+              tooltip.transition()
+                  .duration(0)
+                  .style("opacity", 0);
           }
       })
       .on("mouseout", function(event, d) {
           d3.select(this).style("cursor", "default");
+
+          // Revert opacity based on selection state
           if (!selectedKeyword) {
-            d3.select(this).style("fill-opacity", 1.0);
+            d3.select(this).style("opacity", 1.0);
           } else if (d.key === selectedKeyword) {
-            d3.select(this).style("fill-opacity", 1.0);
+            d3.select(this).style("opacity", 1.0);
           } else {
-            d3.select(this).style("fill-opacity", 0.3);
+            d3.select(this).style("opacity", 0.15);
           }
+
+          // --- TOOLTIP LOGIC: Always hide tooltip on mouseout ---
           tooltip.transition()
               .duration(500)
               .style("opacity", 0);
@@ -141,7 +180,9 @@ export function createStream(svg, data, options) {
   // Stream Graph Legend
   const legendGroup = svg.select(".stream-legend");
   const legendG = legendGroup.empty() ? svg.append("g").attr("class", "stream-legend") : legendGroup;
+  // For consistency with your current code, using hardcoded numbers here
   legendG.attr("transform", `translate(${xPosition + width - 1425}, ${yPosition + 15})`);
+
 
   const legendScaleFactor = 0.75;
   const originalRectSize = 12;
@@ -244,6 +285,5 @@ export function createStream(svg, data, options) {
       overlayGroup.selectAll(".zoomed-stream").remove();
   }
 
-  // --- Return the color scale along with the group ---
-  return { g, color }; // <-- **MODIFIED LINE:** Now returns the color scale
+  return { g, color };
 }
