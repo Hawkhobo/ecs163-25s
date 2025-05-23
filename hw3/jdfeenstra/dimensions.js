@@ -12,7 +12,7 @@
  export const pieTop = 150;
 
  export const streamX = 180;
- export const streamY = 350;
- export const streamWidth = 1300;
- export const streamHeight = 500;
+ export const streamY = 300;
+ export const streamWidth = 1400;
+ export const streamHeight = 550;
  export const streamMargin = { top: 20, right: 30, bottom: 30, left: 50 };
