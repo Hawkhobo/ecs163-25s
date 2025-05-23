@@ -8,8 +8,18 @@
  export const histMargin = { top: 10, right: 30, bottom: 30, left: 60 };
 
  export const pieRadius = Math.min(700, 700) / 2 - 50;
- export const pieLeft = 1235;
+ export const pieLeft = 1050;
  export const pieTop = 120;
+
+export const pieLegendXOffset = 325; 
+export const pieLegendYOffset = 175; 
+
+export const labelTextPosX = 0;
+export const labelTextPosY = -145;
+
+export const countTextPosX = 5;
+export const countTextPosY = -125;
+
 
  export const streamX = 180;
  export const streamY = 340;
@@ -17,8 +27,6 @@
  export const streamHeight = 550;
  export const streamMargin = { top: 20, right: 30, bottom: 30, left: 50 };
 
-export const pieLegendXOffset = -425; 
-export const pieLegendYOffset = 30; 
 
 export const streamLegendXOffset = 1570; 
 export const streamLegendYOffset = 50; 

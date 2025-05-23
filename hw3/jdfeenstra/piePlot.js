@@ -1,4 +1,4 @@
-import { pieLegendXOffset, pieLegendYOffset } from './dimensions.js';
+import { pieLegendXOffset, pieLegendYOffset, labelTextPosX, labelTextPosY, countTextPosX, countTextPosY } from './dimensions.js';
 
 export function createPie(svg, subjectVoteData, histData, allKeywordCounts, options) {
   const { radius, left, top, selectedKeyword, onPieClick, selectedKeywordColor } = options;
@@ -79,7 +79,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
   arcsMerged
     .transition()
     .duration(750)
-    .ease(d3.easeCubicOut)
+    .ease(d3.easeElastic.period(0.8).amplitude(0.5))
     .style("opacity", 1)
     .attr("fill", d => colorScale(d.data.topKeyword))
     .attrTween("d", function(d) {
@@ -111,7 +111,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
       tooltip.html(`<strong>${d.data.subject}</strong><br/>
                     Total Votes: <strong>${d.data.totalVotes}</strong><br/>
                     Status: ${d.data.passFail}<br/>
-                    Top Keyword: ${d.data.topKeyword || 'N/A'}`)
+                    Top Keyword: ${d.data.topKeyword || 'NaN'}`)
         .style("left", (event.pageX + 15) + "px")
         .style("top", (event.pageY - 28) + "px");
     })
@@ -151,6 +151,9 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
 
   // Handle legend transitions
   updateLegendWithTransitions(svg, left, top, radius, selectedKeyword, selectedKeywordColor, processedPieData, colorScale);
+
+  // Add/update total votes display
+  updateTotalVotesDisplay(svg, left, top, radius, processedPieData);
 
   return g;
 }
@@ -212,4 +215,57 @@ function updateLegendWithTransitions(svg, left, top, radius, selectedKeyword, se
     .transition()
     .duration(400)
     .attr("fill", d => selectedKeyword ? selectedKeywordColor : colorScale(d));
+}
+
+function updateTotalVotesDisplay(svg, left, top, radius, processedPieData) {
+  // Calculate total votes
+  const totalVotes = processedPieData.reduce((sum, d) => sum + d.totalVotes, 0);
+  
+  // Position the text to the right of the pie chart
+  const textX = left + radius * 2 + 20; // 20px padding from pie edge
+  const textY = top + radius - 10; // Slightly above center
+  
+  // Get or create the total votes group
+  let totalVotesGroup = svg.select(".total-votes-group");
+  if (totalVotesGroup.empty()) {
+    totalVotesGroup = svg.append("g").attr("class", "total-votes-group");
+  }
+  
+  // Update the label text
+  let labelText = totalVotesGroup.select(".total-votes-label");
+  if (labelText.empty()) {
+    labelText = totalVotesGroup.append("text")
+      .attr("class", "total-votes-label")
+      .attr("x", textX + labelTextPosX)
+      .attr("y", textY + labelTextPosY)
+      .attr("text-anchor", "start")
+      .style("font-family", "Arial, sans-serif")
+      .style("font-size", "18px")
+      .style("font-weight", "bold") .style("fill", "#333") .text("Total Votes:"); } // Update the count text with transition
+  let countText = totalVotesGroup.select(".total-votes-count");
+  if (countText.empty()) {
+    countText = totalVotesGroup.append("text")
+      .attr("class", "total-votes-count")
+      .attr("x", textX + countTextPosX)
+      .attr("y", textY + countTextPosY)
+      .attr("text-anchor", "start")
+      .style("font-family", "Arial, sans-serif")
+      .style("font-size", "22px")
+      .style("font-weight", "bold")
+      .style("fill", "#2563eb")
+      .text("0");
+  }
+
+  // Animate the number change
+  countText
+    .transition()
+    .duration(750)
+    .ease(d3.easeQuadOut)
+    .tween("text", function() {
+      const currentValue = +this.textContent.replace(/,/g, '') || 0;
+      const interpolate = d3.interpolateNumber(currentValue, totalVotes);
+      return function(t) {
+        this.textContent = Math.round(interpolate(t)).toLocaleString();
+      };
+    });
 }

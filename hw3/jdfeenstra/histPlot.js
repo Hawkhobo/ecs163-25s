@@ -64,7 +64,7 @@ export function createHist(svg, data, options) {
       tooltip.transition()
         .duration(200)
         .style("opacity", .9);
-      tooltip.html(`Keyword: <strong>${d.keyword}</strong><br/>Count: <strong>${d.count}</strong>`)
+      tooltip.html(`Keyword: <strong>${d.keyword}</strong><br/>Total Count: <strong>${d.count}</strong>`)
         .style("left", (event.pageX + 10) + "px")
         .style("top", (event.pageY - 28) + "px");
     })
