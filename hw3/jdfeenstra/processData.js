@@ -1,10 +1,10 @@
- export function processData(data, selectedKeyword = null) {
+export function processData(data, selectedKeyword = null) {
   const keywordColumns = ['Keyword1', 'Keyword2', 'Keyword3', 'Keyword4', 'Keyword5'];
   const keywordCounts = {};
-  const subjectVotes = {}; // Original subject votes for pie chart
-  const filteredKeywordCounts = {}; // For histogram
+  const allSubjectVotes = {}; // Rename to avoid confusion with the final 'subjectVotes' returned
+  const filteredKeywordCounts = {};
 
-  // First pass: Calculate original keywordCounts and subjectVotes
+  // First pass: Calculate original keywordCounts and allSubjectVotes
   data.forEach(row => {
     keywordColumns.forEach(column => {
       const keyword = row[column] ? row[column].trim() : null;
@@ -18,16 +18,22 @@
     const noVotes = +row['No Votes'];
     const totalVotes = yesVotes + noVotes;
 
-    subjectVotes[subject] = (subjectVotes[subject] || { total: 0, keywords: [], passFail: row['Pass or Fail'] });
-    subjectVotes[subject].total += totalVotes;
+    // Store keywords for each subject directly in the allSubjectVotes object
+    allSubjectVotes[subject] = (allSubjectVotes[subject] || { total: 0, keywords: new Set(), passFail: row['Pass or Fail'] }); // Use Set to avoid duplicate keywords
+    allSubjectVotes[subject].total += totalVotes;
     keywordColumns.forEach(col => {
       const keyword = row[col] ? row[col].trim() : null;
       if (keyword) {
-        subjectVotes[subject].keywords.push(keyword);
+        allSubjectVotes[subject].keywords.add(keyword); // Add to Set
       }
     });
-    subjectVotes[subject].passFail = row['Pass or Fail'];
+    allSubjectVotes[subject].passFail = row['Pass or Fail'];
   });
+
+  // Convert keywords Sets to Arrays for consistency
+  for (const subject in allSubjectVotes) {
+    allSubjectVotes[subject].keywords = Array.from(allSubjectVotes[subject].keywords);
+  }
 
   // Filter out keywords with 3 or less occurrences for histogram (unchanged)
   for (const keyword in keywordCounts) {
@@ -46,25 +52,23 @@
   // --- Stream Graph Data Adjustment ---
   let adjustedTopKeywords = Object.entries(keywordCounts)
     .sort(([, countA], [, countB]) => countB - countA)
-    .slice(0, 30) // Get original top 30
+    .slice(0, 30)
     .map(([keyword]) => keyword);
 
-  const originalTop30Keyword = 'Mayor'; // Define the 30th keyword to replace (or whatever it is in your data)
-                                        // You might want to make this more robust, e.g., by finding the 30th
-                                        // keyword from the sorted list if 'Mayor' isn't consistently 30th.
-                                        // For now, assuming 'Mayor' is a placeholder for the 30th.
+  const thirtyThKeywordIndex = 29; // Index of the 30th keyword (0-indexed)
+  // Ensure we have at least 30 keywords before trying to replace the 30th
+  if (adjustedTopKeywords.length >= 30) {
+    // Find the actual 30th keyword to replace, rather than assuming 'Mayor'
+    const keywordToReplace = adjustedTopKeywords[thirtyThKeywordIndex];
 
-  if (selectedKeyword && !adjustedTopKeywords.includes(selectedKeyword)) {
-    // If a keyword is selected and it's NOT in the current top 30,
-    // replace the 30th keyword with the selected one.
-    const mayorIndex = adjustedTopKeywords.indexOf(originalTop30Keyword);
-    if (mayorIndex !== -1) {
-        adjustedTopKeywords[mayorIndex] = selectedKeyword;
-    } else {
-        // Fallback if 'Mayor' isn't exactly the 30th or present, just replace the last one.
-        adjustedTopKeywords[adjustedTopKeywords.length - 1] = selectedKeyword;
+    if (selectedKeyword && !adjustedTopKeywords.includes(selectedKeyword)) {
+        adjustedTopKeywords[thirtyThKeywordIndex] = selectedKeyword;
     }
+  } else if (selectedKeyword && !adjustedTopKeywords.includes(selectedKeyword)) {
+      // If there are less than 30 keywords and a new one is selected, just add it
+      adjustedTopKeywords.push(selectedKeyword);
   }
+
 
   const streamGraphData = adjustedTopKeywords.map(keyword => {
     const keywordData = {
@@ -90,20 +94,18 @@
   });
 
   // --- Pie Chart Data Adjustment ---
-  let pieFilteredByKeyword = null;
+  let pieDataForPlot; // This will hold the final array for piePlot
+
   if (selectedKeyword) {
     // Filter subjectVoteData to only include subjects relevant to the selectedKeyword
-    const filteredSubjects = Object.entries(subjectVotes).filter(([subject, data]) =>
+    const filteredSubjects = Object.entries(allSubjectVotes).filter(([subject, data]) =>
       data.keywords.includes(selectedKeyword)
     );
 
-    // Now, convert to the array format expected by createPie, but for the filtered set.
-    // Also, remove the slice(0, 25) limit here if you want ALL relevant measures.
-    // Sorting by total votes is still good.
-    pieFilteredByKeyword = filteredSubjects
+    pieDataForPlot = filteredSubjects
       .sort(([, a], [, b]) => b.total - a.total)
       .map(([subject, data]) => {
-        // Re-calculate topKeyword for consistency, though it might not be used for coloring
+        // topKeyword for the filtered measures
         let topKeyword = 'N/A';
         let bestRank = Infinity;
         data.keywords.forEach(keyword => {
@@ -120,26 +122,44 @@
           subject: subject,
           totalVotes: data.total,
           passFail: data.passFail,
-          topKeyword: topKeyword // This will be the original top keyword for the subject
+          topKeyword: topKeyword
+        };
+      });
+  } else {
+    // When no keyword is selected, revert to top 25 measures by total votes
+    pieDataForPlot = Object.entries(allSubjectVotes)
+      .sort(([, a], [, b]) => b.total - a.total)
+      .slice(0, 25) // <--- ADDED SLICE TO GET TOP 25
+      .map(([subject, data]) => {
+        // This recalculates topKeyword for the top 25 unfiltered measures
+        let topKeyword = 'N/A';
+        let bestRank = Infinity;
+        data.keywords.forEach(keyword => {
+          const trimmedKeyword = keyword ? keyword.trim() : null;
+          if (trimmedKeyword) {
+            const rankInHistogram = histData.findIndex(item => item.keyword === trimmedKeyword);
+            if (rankInHistogram !== -1 && rankInHistogram < bestRank) {
+              bestRank = rankInHistogram;
+              topKeyword = trimmedKeyword;
+            }
+          }
+        });
+        return {
+          subject: subject,
+          totalVotes: data.total,
+          passFail: data.passFail,
+          topKeyword: topKeyword
         };
       });
   }
 
-
-  console.log("Histogram Data (from processing):", JSON.stringify(histData, null, 2));
-  console.log("Subject Vote Data (from processing):", JSON.stringify(subjectVotes, null, 2));
-  console.log("Stream Graph Data (from processing):", JSON.stringify(streamGraphData, null, 2));
-  if (selectedKeyword) {
-      console.log("Pie Chart Data (filtered by keyword):", JSON.stringify(pieFilteredByKeyword, null, 2));
-  }
-
   return {
     histData,
-    subjectVotes, // Original for when no keyword is selected
-    streamGraphData, // Potentially adjusted based on selectedKeyword
+    subjectVotes: pieDataForPlot, // <--- Now subjectVotes always returns the processed array
+    streamGraphData,
     keywordCounts,
     filteredKeywordCounts,
-    topKeywords: adjustedTopKeywords, // Pass the adjusted list of top keywords
-    pieFilteredByKeyword // Filtered data for pie when a keyword is selected
+    topKeywords: adjustedTopKeywords,
+    pieFilteredByKeyword: pieDataForPlot // Both now point to the same final data for the pie
   };
 }

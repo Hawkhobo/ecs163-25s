@@ -5,53 +5,8 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
       .attr("class", "pie-group")
       .attr("transform", `translate(${left + radius}, ${top + radius})`);
 
-  // Prepare data for Pie Chart
-  // subjectVoteData will either be the full 'subjectVotes' object (if no selectedKeyword)
-  // OR the 'pieFilteredByKeyword' array (if selectedKeyword is active).
-  // We need to handle both structures.
-
-  let processedPieData;
-
-  if (selectedKeyword) {
-      // If a keyword is selected, subjectVoteData is already an array of processed objects
-      processedPieData = subjectVoteData; // This is 'pieFilteredByKeyword' from processData.js
-  } else {
-      // If no keyword is selected, subjectVoteData is the original 'subjectVotes' object.
-      // We need to convert it to an array and process it for 'topKeyword'.
-      processedPieData = Object.entries(subjectVoteData)
-        .sort(([, a], [, b]) => b.total - a.total)
-        .map(([subject, data]) => {
-          // Recalculate topKeyword here for the UNFILTERED data,
-          // as processData.js calculates it only for the filtered part.
-          // Or, better, ensure processData.js calculates it for *all* subjectVotes
-          // when it builds the original subjectVotes object.
-          // Let's assume for now that data.keywords IS available for the unfiltered case.
-
-          let topKeyword = 'N/A';
-          let bestRank = Infinity;
-          // IMPORTANT: Check if data.keywords exists before calling forEach
-          if (data.keywords && Array.isArray(data.keywords)) {
-            data.keywords.forEach(keyword => {
-              const trimmedKeyword = keyword ? keyword.trim() : null;
-              if (trimmedKeyword) {
-                const rankInHistogram = histData.findIndex(item => item.keyword === trimmedKeyword);
-                if (rankInHistogram !== -1 && rankInHistogram < bestRank) {
-                  bestRank = rankInHistogram;
-                  topKeyword = trimmedKeyword;
-                }
-              }
-            });
-          }
-
-          return {
-            subject: subject,
-            totalVotes: data.total,
-            passFail: data.passFail,
-            topKeyword: topKeyword
-          };
-        });
-  }
-
+  // subjectVoteData is now always the pre-processed array from processData.js
+  const processedPieData = subjectVoteData; // <--- SIMPLIFIED THIS LINE
 
   const pie = d3.pie()
     .value(d => d.totalVotes);
@@ -66,7 +21,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
       colorScale = d3.scaleOrdinal().range([randomColor]);
   } else {
       colorScale = d3.scaleOrdinal()
-        .domain(processedPieData.map(d => d.topKeyword)) // Use processedPieData
+        .domain(processedPieData.map(d => d.topKeyword))
         .range(d3.schemeCategory10);
   }
 
@@ -86,7 +41,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
 
 
   g.selectAll(".arc")
-    .data(pie(processedPieData)) // Use processedPieData here
+    .data(pie(processedPieData))
     .enter().append("path")
     .attr("d", arc)
     .attr("fill", d => colorScale(d.data.topKeyword))
@@ -130,7 +85,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
   if (selectedKeyword) {
       g.classed("highlighted-pie", true);
   } else {
-      g.classed("highlighted-pie", false); // <--- IMPORTANT: Remove class on reset
+      g.classed("highlighted-pie", false);
   }
 
 
@@ -144,7 +99,6 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
   if (selectedKeyword) {
       legendGroup.selectAll(".legend-item").remove();
   } else {
-      // Use processedPieData for the legend domain when not filtered by keyword
       const uniqueKeywords = [...new Set(processedPieData.map(d => d.topKeyword))];
       legendGroup.selectAll(".legend-item")
         .data(uniqueKeywords)

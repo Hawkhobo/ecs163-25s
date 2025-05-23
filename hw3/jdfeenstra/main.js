@@ -46,7 +46,6 @@ function renderVisualizations(data, selectedKeyword = null) {
         keywordCounts,
         filteredKeywordCounts,
         topKeywords, // This will be the potentially adjusted topKeywords for stream
-        pieFilteredByKeyword // This will be the dynamically filtered pie data
     } = processed;
 
     // Plot 1: Histogram
@@ -63,7 +62,7 @@ function renderVisualizations(data, selectedKeyword = null) {
 
     // Plot 2: Pie Chart
     // Pass the dynamically filtered data and the selectedKeyword for highlighting
-    createPie(svg, selectedKeyword ? pieFilteredByKeyword : subjectVotes, histData, keywordCounts, {
+    createPie(svg, subjectVotes, histData, keywordCounts, {
         radius: pieRadius,
         left: pieLeft,
         top: pieTop,
