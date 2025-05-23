@@ -1,14 +1,15 @@
-import { streamLegendXOffset, streamLegendYOffset, legendScaleFactor, streamRectSize } from './dimensions.js'; // Add these imports
+import { streamLegendXOffset, streamLegendYOffset, legendScaleFactor, streamRectSize } from './dimensions.js';
 
 export function createStream(svg, data, options) {
   const { margin, width, height, xPosition, yPosition, topKeywords, selectedKeyword, onStreamClick } = options;
 
-  // Clear existing stream group to prevent duplicates on re-render
-  svg.selectAll(".stream-group").remove();
-
-  const g = svg.append("g")
-      .attr("class", "stream-group")
-      .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`);
+  // Get or create the stream group (don't remove on re-render to preserve transitions)
+  let g = svg.select(".stream-group");
+  if (g.empty()) {
+    g = svg.append("g")
+        .attr("class", "stream-group")
+        .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`);
+  }
 
   const years = Array.from(new Set(data.flatMap(d => d.years.map(y => y.year))));
   years.sort(d3.ascending);
@@ -57,219 +58,295 @@ export function createStream(svg, data, options) {
       }))
     }));
 
-  const tooltip = d3.select("body").select(".stream-tooltip");
+  // Create tooltip if it doesn't exist
+  let tooltip = d3.select("body").select(".stream-tooltip");
   if (tooltip.empty()) {
-      d3.select("body").append("div")
-          .attr("class", "stream-tooltip tooltip")
-          .style("opacity", 0)
-          .style("position", "absolute")
-          .style("background-color", "white")
-          .style("border", "solid")
-          .style("border-width", "1px")
-          .style("border-radius", "5px")
-          .style("padding", "8px")
-          .style("pointer-events", "none");
+    tooltip = d3.select("body").append("div")
+        .attr("class", "stream-tooltip tooltip")
+        .style("opacity", 0)
+        .style("position", "absolute")
+        .style("background-color", "white")
+        .style("border", "solid")
+        .style("border-width", "1px")
+        .style("border-radius", "5px")
+        .style("padding", "8px")
+        .style("pointer-events", "none");
   }
 
   const bisectYear = d3.bisector(d => d.data.year).left;
 
-  g.selectAll(".layer")
-      .data(layers)
-      .enter().append("path")
+  // Bind data to layers and handle enter/update pattern
+  const layerPaths = g.selectAll(".layer")
+      .data(layers, d => d.key);
+
+  // Handle entering layers
+  const layersEnter = layerPaths.enter()
+      .append("path")
       .attr("class", "layer")
       .attr("d", d => area(d.values))
       .attr("fill", d => d.color)
-      .attr("stroke", d => (selectedKeyword && d.key === selectedKeyword) ? "white" : "black")
-      .attr("stroke-width", d => (selectedKeyword && d.key === selectedKeyword) ? 2 : 0.1)
-      .style("filter", d => (selectedKeyword && d.key === selectedKeyword) ? "drop-shadow(3px 3px 2px rgba(0,0,0,0.4))" : null)
-      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.15 : 1.0)
-      .classed("selected-stream", d => d.key === selectedKeyword)
-      .on("click", function(event, d) {
-          if (onStreamClick) {
-              onStreamClick();
-          }
-      })
-      .on("mouseover", function(event, d) {
-          d3.select(this).raise();
-          d3.select(this).style("cursor", "pointer");
+      .style("opacity", 0); // Start invisible
 
-          // Apply temporary opacity change for hover effect
-          if (!selectedKeyword) { // If no stream selected, highlight hovered stream
-            d3.select(this).style("opacity", 0.7);
-          } else if (d.key === selectedKeyword) { // If selected stream is hovered, keep it opaque
-            d3.select(this).style("opacity", 1.0);
-          } else { // If non-selected stream is hovered (while a stream IS selected), make it slightly more opaque
-            d3.select(this).style("opacity", 0.7);
-          }
+  // Merge enter and update selections
+  const layersMerged = layersEnter.merge(layerPaths);
 
-          // --- TOOLTIP LOGIC: Only show tooltip if no keyword is selected, OR if the hovered stream IS the selected keyword ---
-          // This ensures individual stream tooltips only activate when no selection or on the selected stream.
-          if (!selectedKeyword || d.key === selectedKeyword) {
-              tooltip.transition()
-                  .duration(200)
-                  .style("opacity", .9);
-          } else {
-              // If a stream IS selected, but this hovered stream is NOT the selected one, suppress tooltip immediately
-              tooltip.transition()
-                  .duration(0)
-                  .style("opacity", 0);
-          }
-      })
-      .on("mousemove", function(event, d) {
-          // --- MODIFIED: This mousemove only runs if NO keyword is selected. ---
-          // If a keyword IS selected, the 'hover-overlay' will handle the tooltip logic.
-          if (!selectedKeyword) {
-              const [gx, gy] = d3.pointer(event, g.node());
-              const invertedX = x.invert(gx);
+  // Apply smooth transitions to all layers
+  layersMerged
+    .transition()
+    .duration(600)
+    .ease(d3.easeQuadOut)
+    .attr("d", d => area(d.values))
+    .attr("fill", d => d.color)
+    .attr("stroke", d => (selectedKeyword && d.key === selectedKeyword) ? "white" : "black")
+    .attr("stroke-width", d => (selectedKeyword && d.key === selectedKeyword) ? 2 : 0.1)
+    .style("filter", d => (selectedKeyword && d.key === selectedKeyword) ? "drop-shadow(3px 3px 2px rgba(0,0,0,0.4))" : null)
+    .style("opacity", d => {
+      if (!selectedKeyword) return 1.0;
+      return d.key === selectedKeyword ? 1.0 : 0.15;
+    });
 
-              const i = bisectYear(d.values, invertedX, 1);
-              const d0 = d.values[i - 1];
-              const d1 = d.values[i];
-              const dataPoint = (d1 && (invertedX - d0.data.year > d1.data.year - invertedX)) ? d1 : d0;
+  // Update classes after transition
+  layersMerged
+    .classed("selected-stream", d => d.key === selectedKeyword);
 
-              tooltip.transition().duration(50).style("opacity", .9); // Ensure visibility
+  // Handle exiting layers
+  layerPaths.exit()
+    .transition()
+    .duration(400)
+    .style("opacity", 0)
+    .remove();
 
-              if (dataPoint) {
-                  const currentYear = dataPoint.data.year;
-                  const currentValue = Math.round(dataPoint.y1 - dataPoint.y0);
+  // Add event handlers to merged selection
+  layersMerged
+    .on("click", function(event, d) {
+        if (onStreamClick) {
+            onStreamClick();
+        }
+    })
+    .on("mouseover", function(event, d) {
+        d3.select(this).raise();
+        d3.select(this).style("cursor", "pointer");
 
-                  tooltip.html(`Keyword: <strong>${d.key}</strong><br/>
-                                Year: <strong>${Math.round(currentYear)}</strong><br/>
-                                Count: <strong>${currentValue}</strong>`)
-                      .style("left", (event.pageX + 15) + "px")
-                      .style("top", (event.pageY - 28) + "px");
-              } else {
-                  tooltip.html(`Keyword: <strong>${d.key}</strong><br/>No data for this year.`);
-              }
-          }
-      })
-      .on("mouseout", function(event, d) {
-          d3.select(this).style("cursor", "default");
+        // Gentle hover effect with transition
+        if (!selectedKeyword) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style("opacity", 0.7);
+        } else if (d.key === selectedKeyword) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style("opacity", 1.0);
+        } else {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style("opacity", 0.4); // Slightly more visible on hover
+        }
 
-          // Revert opacity based on selection state
-          if (!selectedKeyword) {
-            d3.select(this).style("opacity", 1.0);
-            // --- MODIFIED: Only hide tooltip if no keyword is selected (overlay handles it otherwise) ---
-            tooltip.transition().duration(500).style("opacity", 0);
-          } else if (d.key === selectedKeyword) {
-            d3.select(this).style("opacity", 1.0); // Stay opaque
-            // Do NOT hide tooltip, the overlay's mouseout will handle it when leaving the whole area
-          } else {
-            d3.select(this).style("opacity", 0.15); // Revert to very transparent
-            // Do NOT hide tooltip, the overlay's mouseout will handle it when leaving the whole area
-          }
-      });
+        // Tooltip logic
+        if (!selectedKeyword || d.key === selectedKeyword) {
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", .9);
+        } else {
+            tooltip.transition()
+                .duration(0)
+                .style("opacity", 0);
+        }
+    })
+    .on("mousemove", function(event, d) {
+        if (!selectedKeyword) {
+            const [gx, gy] = d3.pointer(event, g.node());
+            const invertedX = x.invert(gx);
 
-  // --- NEW: Transparent Overlay to capture mouse events across the entire graph ---
-  g.append("rect")
-      .attr("class", "hover-overlay")
-      .attr("x", 0)
-      .attr("y", 0)
-      .attr("width", width)
-      .attr("height", height)
-      .attr("fill", "none") // Make it invisible
-      .attr("pointer-events", "all") // Ensure it captures all mouse events
-      .on("mousemove", function(event) {
-          // --- This logic ONLY applies when a keyword IS selected ---
-          if (selectedKeyword) {
-              const [gx, gy] = d3.pointer(event, this); // Get coordinates relative to the overlay rect
-              const invertedX = x.invert(gx); // Invert x-coordinate to get the year
+            const i = bisectYear(d.values, invertedX, 1);
+            const d0 = d.values[i - 1];
+            const d1 = d.values[i];
+            const dataPoint = (d1 && (invertedX - d0.data.year > d1.data.year - invertedX)) ? d1 : d0;
 
-              const selectedLayerData = layers.find(l => l.key === selectedKeyword);
+            tooltip.transition().duration(50).style("opacity", .9);
 
-              if (selectedLayerData) {
-                  // Find the data point for the selected keyword at the current year
-                  const i = bisectYear(selectedLayerData.values, invertedX, 1);
-                  const d0 = selectedLayerData.values[i - 1];
-                  const d1 = selectedLayerData.values[i];
-                  const dataPoint = (d1 && (invertedX - d0.data.year > d1.data.year - invertedX)) ? d1 : d0;
+            if (dataPoint) {
+                const currentYear = dataPoint.data.year;
+                const currentValue = Math.round(dataPoint.y1 - dataPoint.y0);
 
-                  tooltip.transition()
-                      .duration(50) // Quick transition to show
-                      .style("opacity", .9);
+                tooltip.html(`Keyword: <strong>${d.key}</strong><br/>
+                              Year: <strong>${Math.round(currentYear)}</strong><br/>
+                              Count: <strong>${currentValue}</strong>`)
+                    .style("left", (event.pageX + 15) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            } else {
+                tooltip.html(`Keyword: <strong>${d.key}</strong><br/>No data for this year.`);
+            }
+        }
+    })
+    .on("mouseout", function(event, d) {
+        d3.select(this).style("cursor", "default");
 
-                  if (dataPoint) {
-                      const currentYear = dataPoint.data.year;
-                      const currentValue = Math.round(dataPoint.y1 - dataPoint.y0); // Count for the selected stream
+        // Smooth transition back to normal state
+        if (!selectedKeyword) {
+          d3.select(this)
+            .transition()
+            .duration(300)
+            .style("opacity", 1.0);
+          tooltip.transition().duration(500).style("opacity", 0);
+        } else if (d.key === selectedKeyword) {
+          d3.select(this)
+            .transition()
+            .duration(300)
+            .style("opacity", 1.0);
+        } else {
+          d3.select(this)
+            .transition()
+            .duration(300)
+            .style("opacity", 0.15);
+        }
+    });
 
-                      tooltip.html(`Keyword: <strong>${selectedKeyword}</strong><br/>
-                                    Year: <strong>${Math.round(currentYear)}</strong><br/>
-                                    Count: <strong>${currentValue}</strong>`)
-                          .style("left", (event.pageX + 15) + "px") // Position relative to mouse
-                          .style("top", (event.pageY - 28) + "px");
-                  } else {
-                      // Handle cases where dataPoint might be null (e.g., mouse outside data range for this year)
-                      tooltip.html(`Keyword: <strong>${selectedKeyword}</strong><br/>No data at this point.`);
-                  }
-              }
-          }
-      })
-      .on("mouseout", function() {
-          // --- This logic ONLY applies when a keyword IS selected ---
-          // Hide the tooltip when the mouse leaves the entire stream graph area.
-          if (selectedKeyword) {
-              tooltip.transition()
-                  .duration(500)
-                  .style("opacity", 0);
-          }
-      });
+  // Create or update hover overlay
+  let hoverOverlay = g.select(".hover-overlay");
+  if (hoverOverlay.empty()) {
+    hoverOverlay = g.append("rect")
+        .attr("class", "hover-overlay")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", width)
+        .attr("height", height)
+        .attr("fill", "none")
+        .attr("pointer-events", "all");
+  }
 
+  hoverOverlay
+    .on("mousemove", function(event) {
+        if (selectedKeyword) {
+            const [gx, gy] = d3.pointer(event, this);
+            const invertedX = x.invert(gx);
+
+            const selectedLayerData = layers.find(l => l.key === selectedKeyword);
+
+            if (selectedLayerData) {
+                const i = bisectYear(selectedLayerData.values, invertedX, 1);
+                const d0 = selectedLayerData.values[i - 1];
+                const d1 = selectedLayerData.values[i];
+                const dataPoint = (d1 && (invertedX - d0.data.year > d1.data.year - invertedX)) ? d1 : d0;
+
+                tooltip.transition()
+                    .duration(50)
+                    .style("opacity", .9);
+
+                if (dataPoint) {
+                    const currentYear = dataPoint.data.year;
+                    const currentValue = Math.round(dataPoint.y1 - dataPoint.y0);
+
+                    tooltip.html(`Keyword: <strong>${selectedKeyword}</strong><br/>
+                                  Year: <strong>${Math.round(currentYear)}</strong><br/>
+                                  Count: <strong>${currentValue}</strong>`)
+                        .style("left", (event.pageX + 15) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                } else {
+                    tooltip.html(`Keyword: <strong>${selectedKeyword}</strong><br/>No data at this point.`);
+                }
+            }
+        }
+    })
+    .on("mouseout", function() {
+        if (selectedKeyword) {
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0);
+        }
+    });
+
+  // Add axes
+  g.selectAll(".axis").remove(); // Remove old axes
+  
   g.append("g")
+      .attr("class", "axis axis-x")
       .attr("transform", `translate(0, ${height})`)
       .call(d3.axisBottom(x).tickFormat(d3.format("d")));
 
   g.append("g")
+      .attr("class", "axis axis-y")
       .call(d3.axisLeft(y));
 
-  // Stream Graph Legend
-  const legendGroup = svg.select(".stream-legend");
-  const legendG = legendGroup.empty() ? svg.append("g").attr("class", "stream-legend") : legendGroup;
-  legendG.attr("transform", `translate(${xPosition + width - streamLegendXOffset}, ${yPosition + streamLegendYOffset})`);
+  // Update legend with transitions
+  updateStreamLegendWithTransitions(svg, layers, selectedKeyword, xPosition, yPosition, width);
 
+  // Update zoomed overlay with transitions
+  updateZoomedOverlayWithTransitions(svg, selectedKeyword, layers, years, width, height, xPosition, yPosition, margin);
+
+  return { g, color };
+}
+
+function updateStreamLegendWithTransitions(svg, layers, selectedKeyword, xPosition, yPosition, width) {
+  let legendG = svg.select(".stream-legend");
+  if (legendG.empty()) {
+    legendG = svg.append("g").attr("class", "stream-legend");
+  }
+  
+  legendG.attr("transform", `translate(${xPosition + width - streamLegendXOffset}, ${yPosition + streamLegendYOffset})`);
 
   const originalSpacing = 6;
   const originalVerticalSpacing = 10;
-
   const reversedLayers = [...layers].reverse();
 
-  legendG.selectAll(".legend-item")
-      .data(reversedLayers, d => d.key)
-      .join(
-          enter => {
-              const item = enter.append("g")
-                  .attr("class", "legend-item")
-                  .attr("transform", (d, i) => `translate(0, ${i * (streamRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`);
+  const legendItems = legendG.selectAll(".legend-item")
+      .data(reversedLayers, d => d.key);
 
-              item.append("rect")
-                  .attr("x", 0)
-                  .attr("y", 0)
-                  .attr("width", streamRectSize)
-                  .attr("height", streamRectSize)
-                  .attr("fill", d => d.color);
+  // Enter
+  const legendEnter = legendItems.enter()
+      .append("g")
+      .attr("class", "legend-item")
+      .attr("transform", (d, i) => `translate(0, ${i * (streamRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`)
+      .style("opacity", 0);
 
-              item.append("text")
-                  .attr("x", streamRectSize + originalSpacing)
-                  .attr("y", streamRectSize / 2)
-                  .attr("dy", "0.35em")
-                  .style("font-size", "1em")
-                  .text(d => d.key);
+  legendEnter.append("rect")
+      .attr("x", 0)
+      .attr("y", 0)
+      .attr("width", streamRectSize)
+      .attr("height", streamRectSize)
+      .attr("fill", d => d.color);
 
-              return item;
-          },
-          update => {
-              update.attr("transform", (d, i) => `translate(0, ${i * (streamRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`);
-              update.select("rect").attr("fill", d => d.color);
-              update.select("text").text(d => d.key);
+  legendEnter.append("text")
+      .attr("x", streamRectSize + originalSpacing)
+      .attr("y", streamRectSize / 2)
+      .attr("dy", "0.35em")
+      .style("font-size", "1em")
+      .text(d => d.key);
 
-              return update;
-          },
-          exit => exit.remove()
-      )
-      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0)
-      .classed("selected-legend-item", d => d.key === selectedKeyword);
+  // Merge and update
+  const legendMerged = legendEnter.merge(legendItems);
 
+  legendMerged
+    .transition()
+    .duration(500)
+    .ease(d3.easeQuadOut)
+    .attr("transform", (d, i) => `translate(0, ${i * (streamRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`)
+    .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0);
 
-  // --- Zoomed Overlay for Selected Stream (No change here, as it provides extra emphasis) ---
+  legendMerged.select("rect")
+    .transition()
+    .duration(500)
+    .attr("fill", d => d.color);
+
+  legendMerged.select("text")
+    .transition()
+    .duration(500)
+    .text(d => d.key);
+
+  legendMerged.classed("selected-legend-item", d => d.key === selectedKeyword);
+
+  // Exit
+  legendItems.exit()
+    .transition()
+    .duration(400)
+    .style("opacity", 0)
+    .remove();
+}
+
+function updateZoomedOverlayWithTransitions(svg, selectedKeyword, layers, years, width, height, xPosition, yPosition, margin) {
   const zoomScale = 2.0;
   const zoomOffset = { x: 0, y: -height / 2 };
 
@@ -304,27 +381,44 @@ export function createStream(svg, data, options) {
           overlayGroup
               .attr("transform", `translate(${xPosition + margin.left + zoomOffset.x}, ${yPosition + margin.top + zoomOffset.y})`);
 
+          // Smooth transition for zoomed overlay
           overlayGroup.selectAll(".zoomed-stream")
               .data([selectedLayerData])
               .join(
                   enter => enter.append("path")
                       .attr("class", "zoomed-stream")
+                      .style("opacity", 0)
                       .attr("d", zoomedArea)
                       .attr("fill", selectedLayerData.color)
                       .attr("stroke", "white")
                       .attr("stroke-width", 2)
-                      .style("filter", "drop-shadow(3px 3px 2px rgba(0,0,0,0.4))"),
+                      .style("filter", "drop-shadow(3px 3px 2px rgba(0,0,0,0.4))")
+                      .call(enter => enter.transition()
+                          .duration(800)
+                          .ease(d3.easeBackOut.overshoot(0.3))
+                          .style("opacity", 1)),
                   update => update
+                      .transition()
+                      .duration(600)
                       .attr("d", zoomedArea)
                       .attr("fill", selectedLayerData.color),
-                  exit => exit.remove()
+                  exit => exit.transition()
+                      .duration(400)
+                      .style("opacity", 0)
+                      .remove()
               );
       } else {
-          overlayGroup.selectAll(".zoomed-stream").remove();
+          overlayGroup.selectAll(".zoomed-stream")
+              .transition()
+              .duration(400)
+              .style("opacity", 0)
+              .remove();
       }
   } else {
-      overlayGroup.selectAll(".zoomed-stream").remove();
+      overlayGroup.selectAll(".zoomed-stream")
+          .transition()
+          .duration(400)
+          .style("opacity", 0)
+          .remove();
   }
-
-  return { g, color };
 }
