@@ -4,7 +4,7 @@ import { createStream } from './streamGraph.js';
 import { processData } from './processData.js';
 import { width, height, histX, histY, histWidth, histHeight, histMargin, pieRadius, pieLeft, pieTop, streamX, streamY, streamWidth, streamHeight, streamMargin } from './dimensions.js';
 
-const csvFilePath = 'List_of_Historical_Ballot_Measures.csv';
+const csvFilePath = 'List_of_Historical_Ballot_Measures.csv'; // Keeping your exact CSV path
 
 // Create SVG container (ensure it's only created once)
 const svg = d3.select("body").append("svg")
@@ -30,12 +30,14 @@ headerGroup.append("text")
 
 let originalData = null; // Store the raw CSV data once loaded
 let currentSelectedKeyword = null; // State variable for the clicked keyword
+let streamGraphColorScale = null; // **NEW:** Variable to store the color scale from streamGraph
+
 
 // Function to render all visualizations
 function renderVisualizations(data, selectedKeyword = null) {
     // Clear existing visualizations before re-rendering
     // This is crucial to avoid drawing multiple charts on top of each other
-    svg.selectAll(".hist-group, .pie-group, .stream-group, .legend").remove(); // Add classes to your main groups in vis files
+    svg.selectAll(".hist-group, .pie-group, .pie-legend, .stream-group, .stream-overlay-group, .stream-legend").remove(); // **MODIFIED:** Added .pie-legend, .stream-overlay-group, .stream-legend for complete clearing
 
     // Process data based on the selected keyword
     const processed = processData(data, selectedKeyword);
@@ -60,19 +62,9 @@ function renderVisualizations(data, selectedKeyword = null) {
         selectedKeyword: selectedKeyword // Pass the current selection for highlighting
     });
 
-    // Plot 2: Pie Chart
-    // Pass the dynamically filtered data and the selectedKeyword for highlighting
-    createPie(svg, subjectVotes, histData, keywordCounts, {
-        radius: pieRadius,
-        left: pieLeft,
-        top: pieTop,
-        selectedKeyword: selectedKeyword, // Pass the current selection for highlighting
-        onPieClick: handlePieClick // Pass the callback for reset
-    });
-
-    // Plot 3: Stream Graph
-    // Pass the dynamically adjusted topKeywords and the selectedKeyword for highlighting
-    createStream(svg, streamGraphData, {
+    // Plot 3: Stream Graph (Rendered before Pie to get its color scale)
+    // Capture the result which now contains the 'g' group AND the 'color' scale
+    const streamGraphResult = createStream(svg, streamGraphData, { // **MODIFIED:** Capture result
         margin: streamMargin,
         width: streamWidth,
         height: streamHeight,
@@ -81,6 +73,18 @@ function renderVisualizations(data, selectedKeyword = null) {
         topKeywords: topKeywords, // Use the potentially adjusted topKeywords
         selectedKeyword: selectedKeyword, // Pass the current selection for highlighting
         onStreamClick: handleStreamClick // Pass the callback for reset
+    });
+    streamGraphColorScale = streamGraphResult.color; // **NEW:** Store the color scale for pie chart use
+
+    // Plot 2: Pie Chart
+    // Pass the dynamically filtered data and the selectedKeyword for highlighting
+    createPie(svg, subjectVotes, histData, keywordCounts, {
+        radius: pieRadius,
+        left: pieLeft,
+        top: pieTop,
+        selectedKeyword: selectedKeyword, // Pass the current selection for highlighting
+        onPieClick: handlePieClick, // Pass the callback for reset
+        selectedKeywordColor: selectedKeyword ? streamGraphColorScale(selectedKeyword) : null // **NEW:** Pass the specific color
     });
 }
 

@@ -10,7 +10,7 @@ export function createStream(svg, data, options) {
 
   const x = d3.scaleLinear().domain(d3.extent(years)).range([0, width]);
   const y = d3.scaleLinear().range([height, 0]);
-  const color = d3.scaleOrdinal(d3.schemeCategory10);
+  const color = d3.scaleOrdinal(d3.schemeCategory10); // This is the color scale we need to return
 
   const stackedDataInput = years.map(year => {
     const yearData = { year: year };
@@ -188,50 +188,42 @@ export function createStream(svg, data, options) {
 
 
   // --- Zoomed Overlay for Selected Stream ---
-  const zoomScale = 2.0; // How much to zoom in
-  const zoomOffset = { x: 2, y: -height / 2 }; // Offset for the overlay (adjust as needed)
+  const zoomScale = 2.0;
+  const zoomOffset = { x: 0, y: -height / 2 };
 
-  // Create or select the overlay group
   let overlayGroup = svg.select(".stream-overlay-group");
   if (overlayGroup.empty()) {
       overlayGroup = svg.append("g")
           .attr("class", "stream-overlay-group")
-          .attr("pointer-events", "none"); // Prevent interactions with the overlay
+          .attr("pointer-events", "none");
   }
 
   if (selectedKeyword) {
-      // Find the data for the selected keyword
       const selectedLayerData = layers.find(d => d.key === selectedKeyword);
 
       if (selectedLayerData) {
-          // Define zoomed scales
           const zoomX = d3.scaleLinear()
               .domain(d3.extent(years))
-              .range([0, width * zoomScale]); // Scale width
+              .range([0, width * zoomScale]);
 
-          // Get the actual min/max values for the selected layer to zoom accurately
           const selectedLayerValues = selectedLayerData.values.map(d => d.y1 - d.y0);
-          const zoomYMin = d3.min(selectedLayerValues);
           const zoomYMax = d3.max(selectedLayerValues);
 
-          // We need a specific Y scale for the zoomed individual layer
-          // Let's make it zoom on the *absolute* values of that layer, not the stacked values.
           const zoomY = d3.scaleLinear()
-              .domain([0, zoomYMax || 1]) // Domain from 0 to max count of this specific layer
-              .range([height * zoomScale / 2, 0]); // Adjust range for visibility
+              .domain([0, zoomYMax || 1])
+              .range([height * zoomScale / 2, 0]);
 
-          // Redefine the area generator for the zoomed path, using *only* the current layer's count
           const zoomedArea = d3.area()
               .x(d => zoomX(d.data.year))
-              .y0(zoomY(0)) // Base of the stream should be 0 on the zoomed scale
-              .y1(d => zoomY(d.y1 - d.y0)) // Use the actual count of the layer
+              .y0(zoomY(0))
+              .y1(d => zoomY(d.y1 - d.y0))
               .curve(d3.curveBasis);
 
           overlayGroup
               .attr("transform", `translate(${xPosition + margin.left + zoomOffset.x}, ${yPosition + margin.top + zoomOffset.y})`);
 
           overlayGroup.selectAll(".zoomed-stream")
-              .data([selectedLayerData]) // Bind only the selected layer data
+              .data([selectedLayerData])
               .join(
                   enter => enter.append("path")
                       .attr("class", "zoomed-stream")
@@ -239,34 +231,19 @@ export function createStream(svg, data, options) {
                       .attr("fill", selectedLayerData.color)
                       .attr("stroke", "white")
                       .attr("stroke-width", 2)
-                      .style("filter", "drop-shadow(3px 3px 2px rgba(0,0,0,0.4))"), // Add a drop shadow for visibility
+                      .style("filter", "drop-shadow(3px 3px 2px rgba(0,0,0,0.4))"),
                   update => update
                       .attr("d", zoomedArea)
                       .attr("fill", selectedLayerData.color),
                   exit => exit.remove()
               );
-
-          // Optional: Add X and Y axes for the zoomed overlay if desired
-          // Adjust position of zoomed axes as needed
-         // overlayGroup.select(".zoom-x-axis").remove();
-          // overlayGroup.select(".zoom-y-axis").remove();
-          // overlayGroup.append("g")
-          //     .attr("class", "zoom-x-axis")
-          //     .attr("transform", `translate(0, ${height * zoomScale / 2})`) // Position at bottom of zoomed area
-          //     .call(d3.axisBottom(zoomX).tickFormat(d3.format("d")));
-
-          // overlayGroup.append("g")
-          //     .attr("class", "zoom-y-axis")
-          //     .call(d3.axisLeft(zoomY));
-
       } else {
-          // If selectedLayerData is not found (shouldn't happen if selectedKeyword is active), remove overlay
           overlayGroup.selectAll(".zoomed-stream").remove();
       }
   } else {
-      // If no keyword is selected, remove the overlay
       overlayGroup.selectAll(".zoomed-stream").remove();
   }
 
-  return g;
+  // --- Return the color scale along with the group ---
+  return { g, color }; // <-- **MODIFIED LINE:** Now returns the color scale
 }

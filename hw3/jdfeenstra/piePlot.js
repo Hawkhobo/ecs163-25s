@@ -1,5 +1,5 @@
 export function createPie(svg, subjectVoteData, histData, allKeywordCounts, options) {
-  const { radius, left, top, selectedKeyword, onPieClick } = options;
+  const { radius, left, top, selectedKeyword, onPieClick, selectedKeywordColor } = options; // <--- Capture new option
 
   const g = svg.append("g")
       .attr("class", "pie-group")
@@ -15,14 +15,19 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
     .outerRadius(radius);
 
   let colorScale;
-  if (selectedKeyword) {
-      const randomColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
-      colorScale = d3.scaleOrdinal().range([randomColor]);
+  // --- NEW/CHANGED LOGIC FOR COLOR SCALE ---
+  if (selectedKeyword && selectedKeywordColor) {
+      // If a keyword is selected and its color is explicitly passed, use that color for all slices
+      // We create a scale whose range is ONLY that one color.
+      colorScale = d3.scaleOrdinal().range([selectedKeywordColor]);
   } else {
+      // Otherwise (no keyword selected or color not passed), use a default D3 scheme
       colorScale = d3.scaleOrdinal()
-        .domain(processedPieData.map(d => d.topKeyword))
-        .range(d3.schemeCategory10);
+        .domain(processedPieData.map(d => d.topKeyword)) // Domain mapped to the keywords in the pie data
+        .range(d3.schemeCategory10); // Use the default color scheme
   }
+  // --- END NEW/CHANGED LOGIC ---
+
 
   const tooltip = d3.select("body").select(".pie-tooltip");
   if (tooltip.empty()) {
@@ -43,7 +48,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
     .data(pie(processedPieData))
     .enter().append("path")
     .attr("d", arc)
-    .attr("fill", d => colorScale(d.data.topKeyword))
+    .attr("fill", d => colorScale(d.data.topKeyword)) // Use the determined color scale
     .attr("class", "arc")
     .attr("stroke", "black")
     .attr("stroke-width", 1)
@@ -87,21 +92,39 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
       g.classed("highlighted-pie", false);
   }
 
-
-  // --- Legend Rendering Logic ---
-  // Ensure the legend group is always present and correctly positioned
+  // --- Pie Legend Rendering Logic ---
   const legendGroup = svg.select(".pie-legend");
   const legendG = legendGroup.empty() ? svg.append("g").attr("class", "pie-legend") : legendGroup;
   legendG.attr("transform", `translate(${left + radius - 700}, ${top})`);
 
 
   if (selectedKeyword) {
-      // If a keyword is selected, remove all legend items
-      legendG.selectAll(".legend-item").remove(); // Use legendG here
+      // When a keyword is selected, the pie legend should display a single item for the selected keyword.
+      legendG.selectAll(".legend-item")
+        .data([selectedKeyword]) // Bind only the selected keyword
+        .join(
+          enter => enter.append("g")
+            .attr("class", "legend-item")
+            .attr("transform", `translate(0, 0)`) // Position single item
+            .call(legendEnter => {
+              legendEnter.append("rect")
+                .attr("width", 18)
+                .attr("height", 18)
+                .attr("fill", selectedKeywordColor || "grey"); // Use the passed color
+              legendEnter.append("text")
+                .attr("x", 24)
+                .attr("y", 9)
+                .attr("dy", "0.35em")
+                .text(d => d);
+            }),
+          update => update
+            .select("rect").attr("fill", selectedKeywordColor || "grey"), // Update color
+          exit => exit.remove()
+        );
   } else {
-      // If no keyword is selected, update/create legend items
+      // When no keyword is selected, display the original top 25 keywords' legend
       const uniqueKeywords = [...new Set(processedPieData.map(d => d.topKeyword))];
-      legendG.selectAll(".legend-item") // Use legendG here
+      legendG.selectAll(".legend-item")
         .data(uniqueKeywords)
         .join(
           enter => enter.append("g")
@@ -111,17 +134,17 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
               legendEnter.append("rect")
                 .attr("width", 18)
                 .attr("height", 18)
-                .attr("fill", colorScale);
+                .attr("fill", colorScale); // Use the default color scale
               legendEnter.append("text")
                 .attr("x", 24)
                 .attr("y", 9)
                 .attr("dy", "0.35em")
                 .text(d => d);
             }),
-          update => update // Update existing items if data changes
+          update => update
             .attr("transform", (d, i) => `translate(0, ${i * 20})`)
-            .select("rect").attr("fill", colorScale),
-          exit => exit.remove() // Remove old items
+            .select("rect").attr("fill", colorScale), // Update color
+          exit => exit.remove()
         );
   }
 
