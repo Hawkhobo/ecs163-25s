@@ -1,4 +1,4 @@
-import { pieLegendXOffset, pieLegendYOffset, labelTextPosX, labelTextPosY, countTextPosX, countTextPosY } from './dimensions.js';
+import { pieLegendXOffset, pieLegendYOffset, labelTextPosX, labelTextPosY, countTextPosX, countTextPosY, pieHeaderX, pieHeaderY} from './dimensions.js';
 
 export function createPie(svg, subjectVoteData, histData, allKeywordCounts, options) {
   const { radius, left, top, selectedKeyword, onPieClick, selectedKeywordColor } = options;
@@ -149,6 +149,10 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
       .on("end", () => g.classed("highlighted-pie", false));
   }
 
+  // update Header for pie chart transition
+  const title = selectedKeyword ? `Top ${selectedKeyword} Measures by Votes` : "Top 25 Measures by Votes";
+  updatePieHeader(g, title);
+
   // Handle legend transitions
   updateLegendWithTransitions(svg, left, top, radius, selectedKeyword, selectedKeywordColor, processedPieData, colorScale);
 
@@ -156,6 +160,37 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
   updateTotalVotesDisplay(svg, left, top, radius, processedPieData);
 
   return g;
+}
+
+function updatePieHeader(g, title) {
+  let headerText = g.select(".viz-header");
+
+  if (headerText.empty()) {
+    headerText = g.append("text")
+      .attr("class", "viz-header")
+      .attr("x", pieHeaderX)
+      .attr("y", pieHeaderY)
+      .attr("text-anchor", "middle")
+      .style("font-size", "16px")
+      .style("font-weight", "bold")
+      .style("fill", "#333")
+      .style("opacity", 1)
+      .text(title);
+  } else {
+    // Animate the title change with a fade-out, text change, then fade-in
+    headerText
+      .transition()
+      .duration(200)
+      .style("opacity", 0)
+      .on("end", function() {
+        d3.select(this)
+          .text(title)
+          .transition()
+          .duration(300)
+          .style("opacity", 1);
+      });
+  }
+
 }
 
 function updateLegendWithTransitions(svg, left, top, radius, selectedKeyword, selectedKeywordColor, processedPieData, colorScale) {
@@ -225,7 +260,7 @@ function updateTotalVotesDisplay(svg, left, top, radius, processedPieData) {
   const textX = left + radius * 2 + 20; // 20px padding from pie edge
   const textY = top + radius - 10; // Slightly above center
   
-  // Get or create the total votes group
+  // Get or create the total votes groupI have a couple D3 visualizations.
   let totalVotesGroup = svg.select(".total-votes-group");
   if (totalVotesGroup.empty()) {
     totalVotesGroup = svg.append("g").attr("class", "total-votes-group");

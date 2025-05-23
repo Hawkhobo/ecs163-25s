@@ -14,6 +14,9 @@
 export const pieLegendXOffset = 325; 
 export const pieLegendYOffset = 175; 
 
+export const pieHeaderX = -5;
+export const pieHeaderY = -125
+
 export const labelTextPosX = 0;
 export const labelTextPosY = -145;
 
