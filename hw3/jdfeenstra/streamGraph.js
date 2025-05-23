@@ -1,32 +1,6 @@
 export function createStream(svg, data, options) {
   const { margin, width, height, xPosition, yPosition, topKeywords, selectedKeyword, onStreamClick } = options;
 
-  // --- ADD SVG FILTER DEFINITION HERE ---
-  const defs = svg.select("defs");
-  const filter = defs.empty() ? svg.append("defs").append("filter") : defs.select("#glow-filter");
-
-  if (filter.empty() || filter.attr("id") !== "glow-filter") {
-      svg.append("defs")
-         .append("filter")
-         .attr("id", "glow-filter")
-         .attr("x", "-50%") // Adjust filter area to cover potential blur
-         .attr("y", "-50%")
-         .attr("width", "200%")
-         .attr("height", "200%")
-         .append("feGaussianBlur")
-         .attr("stdDeviation", "2") // Adjust blur amount here
-         .attr("result", "glow");
-
-      // Optional: add a feMerge to stack the glow with the original text
-      svg.select("#glow-filter")
-         .append("feMerge")
-         .append("feMergeNode")
-         .attr("in", "glow");
-      svg.select("#glow-filter feMerge")
-         .append("feMergeNode")
-         .attr("in", "SourceGraphic");
-  }
-
   const g = svg.append("g")
       .attr("class", "stream-group")
       .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`);
@@ -164,12 +138,10 @@ export function createStream(svg, data, options) {
   g.append("g")
       .call(d3.axisLeft(y));
 
-  // --- Legend Rendering Logic ---
-  // Ensure the legend group is always present and correctly positioned
+  // Stream Graph Legend
   const legendGroup = svg.select(".stream-legend");
   const legendG = legendGroup.empty() ? svg.append("g").attr("class", "stream-legend") : legendGroup;
   legendG.attr("transform", `translate(${xPosition + width - 1425}, ${yPosition + 15})`);
-
 
   const legendScaleFactor = 0.75;
   const originalRectSize = 12;
@@ -178,8 +150,8 @@ export function createStream(svg, data, options) {
 
   const reversedLayers = [...layers].reverse();
 
-  legendG.selectAll(".legend-item") // Use legendG here
-      .data(reversedLayers)
+  legendG.selectAll(".legend-item")
+      .data(reversedLayers, d => d.key)
       .join(
           enter => {
               const item = enter.append("g")
@@ -199,15 +171,102 @@ export function createStream(svg, data, options) {
                   .attr("dy", "0.35em")
                   .style("font-size", "1em")
                   .text(d => d.key);
+
               return item;
           },
-          update => update
-              .attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`)
-              .select("rect").attr("fill", d => d.color),
+          update => {
+              update.attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`);
+              update.select("rect").attr("fill", d => d.color);
+              update.select("text").text(d => d.key);
+
+              return update;
+          },
           exit => exit.remove()
       )
       .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0)
-      // --- Stream Legend Highlighting ---
       .classed("selected-legend-item", d => d.key === selectedKeyword);
+
+
+  // --- Zoomed Overlay for Selected Stream ---
+  const zoomScale = 2.0; // How much to zoom in
+  const zoomOffset = { x: 2, y: -height / 2 }; // Offset for the overlay (adjust as needed)
+
+  // Create or select the overlay group
+  let overlayGroup = svg.select(".stream-overlay-group");
+  if (overlayGroup.empty()) {
+      overlayGroup = svg.append("g")
+          .attr("class", "stream-overlay-group")
+          .attr("pointer-events", "none"); // Prevent interactions with the overlay
+  }
+
+  if (selectedKeyword) {
+      // Find the data for the selected keyword
+      const selectedLayerData = layers.find(d => d.key === selectedKeyword);
+
+      if (selectedLayerData) {
+          // Define zoomed scales
+          const zoomX = d3.scaleLinear()
+              .domain(d3.extent(years))
+              .range([0, width * zoomScale]); // Scale width
+
+          // Get the actual min/max values for the selected layer to zoom accurately
+          const selectedLayerValues = selectedLayerData.values.map(d => d.y1 - d.y0);
+          const zoomYMin = d3.min(selectedLayerValues);
+          const zoomYMax = d3.max(selectedLayerValues);
+
+          // We need a specific Y scale for the zoomed individual layer
+          // Let's make it zoom on the *absolute* values of that layer, not the stacked values.
+          const zoomY = d3.scaleLinear()
+              .domain([0, zoomYMax || 1]) // Domain from 0 to max count of this specific layer
+              .range([height * zoomScale / 2, 0]); // Adjust range for visibility
+
+          // Redefine the area generator for the zoomed path, using *only* the current layer's count
+          const zoomedArea = d3.area()
+              .x(d => zoomX(d.data.year))
+              .y0(zoomY(0)) // Base of the stream should be 0 on the zoomed scale
+              .y1(d => zoomY(d.y1 - d.y0)) // Use the actual count of the layer
+              .curve(d3.curveBasis);
+
+          overlayGroup
+              .attr("transform", `translate(${xPosition + margin.left + zoomOffset.x}, ${yPosition + margin.top + zoomOffset.y})`);
+
+          overlayGroup.selectAll(".zoomed-stream")
+              .data([selectedLayerData]) // Bind only the selected layer data
+              .join(
+                  enter => enter.append("path")
+                      .attr("class", "zoomed-stream")
+                      .attr("d", zoomedArea)
+                      .attr("fill", selectedLayerData.color)
+                      .attr("stroke", "white")
+                      .attr("stroke-width", 2)
+                      .style("filter", "drop-shadow(3px 3px 2px rgba(0,0,0,0.4))"), // Add a drop shadow for visibility
+                  update => update
+                      .attr("d", zoomedArea)
+                      .attr("fill", selectedLayerData.color),
+                  exit => exit.remove()
+              );
+
+          // Optional: Add X and Y axes for the zoomed overlay if desired
+          // Adjust position of zoomed axes as needed
+         // overlayGroup.select(".zoom-x-axis").remove();
+          // overlayGroup.select(".zoom-y-axis").remove();
+          // overlayGroup.append("g")
+          //     .attr("class", "zoom-x-axis")
+          //     .attr("transform", `translate(0, ${height * zoomScale / 2})`) // Position at bottom of zoomed area
+          //     .call(d3.axisBottom(zoomX).tickFormat(d3.format("d")));
+
+          // overlayGroup.append("g")
+          //     .attr("class", "zoom-y-axis")
+          //     .call(d3.axisLeft(zoomY));
+
+      } else {
+          // If selectedLayerData is not found (shouldn't happen if selectedKeyword is active), remove overlay
+          overlayGroup.selectAll(".zoomed-stream").remove();
+      }
+  } else {
+      // If no keyword is selected, remove the overlay
+      overlayGroup.selectAll(".zoomed-stream").remove();
+  }
+
   return g;
 }
