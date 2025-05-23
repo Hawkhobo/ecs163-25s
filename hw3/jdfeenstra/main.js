@@ -2,7 +2,7 @@ import { createHist } from './histPlot.js';
 import { createPie } from './piePlot.js';
 import { createStream } from './streamGraph.js';
 import { processData } from './processData.js';
-import { width, height, histX, histY, histWidth, histHeight, histMargin, pieRadius, pieLeft, pieTop, streamX, streamY, streamWidth, streamHeight, streamMargin } from './dimensions.js';
+import { width, height, histX, histY, histWidth, histHeight, histMargin, pieRadius, pieLeft, pieTop, streamX, streamY, streamWidth, streamHeight, streamMargin, footnoteX, footnoteY, footnoteWidth, footnoteHeight, footnotePadding} from './dimensions.js';
 
 const csvFilePath = 'List_of_Historical_Ballot_Measures.csv'; // Keeping your exact CSV path
 
@@ -25,13 +25,40 @@ headerGroup.append("text")
     .attr("text-anchor", "middle")
     .attr("y", 30)
     .style("font-size", "1em")
-    .text("A visualization of historical ballot measures and their key topics. Mouse-over and click on histogram bins to get started!");
+    .text("A visualization of historical ballot measures and their key topics (keywords). Mouse-over or click on histogram bins to get started!");
 
+// Add a footnote with background box in the bottom-right corner
+const footnoteText = `Bay Area Elections 1980-2010
+Dashboard by Jacob Feenstra
+
+1) For the pie chart tooltip, Top Keywords is the most prominent keyword (by number of measures) for a given measure. So if Retirement is one of the 5 keywords for a measure, it is the default Top Keyword (since it is the most popular). Keywords don't exist for all measures; these are marked N/A.
+
+2) Since the original dataset is so huge, this granularity measures keywords with at least 4 occurrences (see histogram).`;
+
+// Append foreignObject for footnote
+const footnoteGroup = svg.append("foreignObject")
+  .attr("x", footnoteX)
+  .attr("y", footnoteY)
+  .attr("width", footnoteWidth)
+  .attr("height", footnoteHeight)
+  .style("overflow", "visible");
+
+// Append HTML content inside the foreignObject
+footnoteGroup.append("xhtml:div")
+  .style("background", "white")
+  .style("border", "1px solid #ccc")
+  .style("border-radius", "6px")
+  .style("padding", `${footnotePadding}px`)
+  .style("font-size", "0.65em")
+  .style("font-family", "sans-serif")
+  .style("color", "#333")
+  .style("opacity", 0.95)
+  .style("width", `${footnoteWidth - 2 * footnotePadding}px`)
+  .html(footnoteText.replace(/\n/g, "<br>"));
 
 let originalData = null; // Store the raw CSV data once loaded
 let currentSelectedKeyword = null; // State variable for the clicked keyword
 let streamGraphColorScale = null; // **NEW:** Variable to store the color scale from streamGraph
-
 
 // Function to render all visualizations
 function renderVisualizations(data, selectedKeyword = null) {

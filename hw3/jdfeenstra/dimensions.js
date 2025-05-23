@@ -1,6 +1,12 @@
  export const width = window.innerWidth;
  export const height = window.innerHeight;
 
+ export const footnoteX = 1590;
+ export const footnoteY = 600
+ export const footnoteWidth = 235;
+ export const footnoteHeight = 130;
+ export const footnotePadding = 10;
+
  export const histX = 1;
  export const histY = 60;
  export const histWidth = 1775;
