@@ -28,7 +28,7 @@ headerGroup.append("text")
     .text("A visualization of historical ballot measures and their key topics (keywords). Mouse-over or click on histogram bins to get started!");
 
 // Add a footnote with background box in the bottom-right corner
-const footnoteText = `Bay Area Elections 1980-2010
+const footnoteText = `Bay Area Ballot Measures 1961-2010
 Dashboard by Jacob Feenstra
 
 1) For the pie chart tooltip, Top Keywords is the most prominent keyword (by number of measures) for a given measure. So if Retirement is one of the 5 keywords for a measure, it is the default Top Keyword (since it is the most popular). Keywords don't exist for all measures; these are marked N/A.

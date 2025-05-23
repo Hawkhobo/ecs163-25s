@@ -273,6 +273,25 @@ export function createStream(svg, data, options) {
       .attr("class", "axis axis-y")
       .call(d3.axisLeft(y));
 
+  // X-axis label
+  g.append("text")
+      .attr("class", "axis-label x-axis-label")
+      .attr("x", width / 2)
+      .attr("y", height + 30) 
+      .attr("text-anchor", "middle")
+      .style("font-size", "12px")
+      .text("Year");
+
+  // Y-axis label
+  g.append("text")
+      .attr("class", "axis-label y-axis-label")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -height / 2)
+      .attr("y", -25) // adjust distance left of y-axis as needed
+      .attr("text-anchor", "middle")
+      .style("font-size", "12px")
+      .text("Keyword Count");
+
   // add a header
   updateVizHeader(
     g,
