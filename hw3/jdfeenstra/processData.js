@@ -1,10 +1,9 @@
 export function processData(data, selectedKeyword = null) {
   const keywordColumns = ['Keyword1', 'Keyword2', 'Keyword3', 'Keyword4', 'Keyword5'];
   const keywordCounts = {};
-  const allSubjectVotes = {}; // Rename to avoid confusion with the final 'subjectVotes' returned
+  const allSubjectVotes = {};
   const filteredKeywordCounts = {};
 
-  // First pass: Calculate original keywordCounts and allSubjectVotes
   data.forEach(row => {
     keywordColumns.forEach(column => {
       const keyword = row[column] ? row[column].trim() : null;
@@ -18,57 +17,62 @@ export function processData(data, selectedKeyword = null) {
     const noVotes = +row['No Votes'];
     const totalVotes = yesVotes + noVotes;
 
-    // Store keywords for each subject directly in the allSubjectVotes object
-    allSubjectVotes[subject] = (allSubjectVotes[subject] || { total: 0, keywords: new Set(), passFail: row['Pass or Fail'] }); // Use Set to avoid duplicate keywords
+    allSubjectVotes[subject] = (allSubjectVotes[subject] || { total: 0, keywords: new Set(), passFail: row['Pass or Fail'] });
     allSubjectVotes[subject].total += totalVotes;
     keywordColumns.forEach(col => {
       const keyword = row[col] ? row[col].trim() : null;
       if (keyword) {
-        allSubjectVotes[subject].keywords.add(keyword); // Add to Set
+        allSubjectVotes[subject].keywords.add(keyword);
       }
     });
     allSubjectVotes[subject].passFail = row['Pass or Fail'];
   });
 
-  // Convert keywords Sets to Arrays for consistency
   for (const subject in allSubjectVotes) {
     allSubjectVotes[subject].keywords = Array.from(allSubjectVotes[subject].keywords);
   }
 
-  // Filter out keywords with 3 or less occurrences for histogram (unchanged)
   for (const keyword in keywordCounts) {
     if (keywordCounts.hasOwnProperty(keyword) && keywordCounts[keyword] > 3) {
       filteredKeywordCounts[keyword] = keywordCounts[keyword];
     }
   }
 
-  // Prepare histogram data (unchanged)
   const histData = Object.entries(filteredKeywordCounts).map(([key, value]) => ({
     keyword: key,
     count: value
   }));
   histData.sort((a, b) => b.count - a.count);
 
-  // --- Stream Graph Data Adjustment ---
-  let adjustedTopKeywords = Object.entries(keywordCounts)
+  // --- Stream Graph Data Adjustment (FINAL AND CORRECTED LOGIC) ---
+  const initialTop30Keywords = Object.entries(keywordCounts)
     .sort(([, countA], [, countB]) => countB - countA)
     .slice(0, 30)
     .map(([keyword]) => keyword);
 
-  const thirtyThKeywordIndex = 29; // Index of the 30th keyword (0-indexed)
-  // Ensure we have at least 30 keywords before trying to replace the 30th
-  if (adjustedTopKeywords.length >= 30) {
-    // Find the actual 30th keyword to replace, rather than assuming 'Mayor'
-    const keywordToReplace = adjustedTopKeywords[thirtyThKeywordIndex];
+  let adjustedTopKeywords;
 
-    if (selectedKeyword && !adjustedTopKeywords.includes(selectedKeyword)) {
-        adjustedTopKeywords[thirtyThKeywordIndex] = selectedKeyword;
+  if (selectedKeyword) {
+    // A keyword IS selected.
+    if (initialTop30Keywords.includes(selectedKeyword)) {
+      // Case 1: Selected keyword is already in the top 30.
+      // Display the original top 30, and highlight the selected one.
+      adjustedTopKeywords = [...initialTop30Keywords];
+    } else {
+      // Case 2: Selected keyword is NOT in the top 30.
+      // Replace the 30th keyword with the selected one.
+      adjustedTopKeywords = [...initialTop30Keywords]; // Start with the top 30
+      if (adjustedTopKeywords.length === 30) {
+        adjustedTopKeywords[29] = selectedKeyword; // Replace the 30th (index 29)
+      } else {
+        adjustedTopKeywords.push(selectedKeyword); // If less than 30, just add it.
+      }
     }
-  } else if (selectedKeyword && !adjustedTopKeywords.includes(selectedKeyword)) {
-      // If there are less than 30 keywords and a new one is selected, just add it
-      adjustedTopKeywords.push(selectedKeyword);
+  } else {
+    // NO keyword is selected (initial load or deselection).
+    // Always revert to the original top 30 keywords.
+    adjustedTopKeywords = [...initialTop30Keywords];
   }
-
 
   const streamGraphData = adjustedTopKeywords.map(keyword => {
     const keywordData = {
@@ -94,10 +98,9 @@ export function processData(data, selectedKeyword = null) {
   });
 
   // --- Pie Chart Data Adjustment ---
-  let pieDataForPlot; // This will hold the final array for piePlot
+  let pieDataForPlot;
 
   if (selectedKeyword) {
-    // Filter subjectVoteData to only include subjects relevant to the selectedKeyword
     const filteredSubjects = Object.entries(allSubjectVotes).filter(([subject, data]) =>
       data.keywords.includes(selectedKeyword)
     );
@@ -105,7 +108,6 @@ export function processData(data, selectedKeyword = null) {
     pieDataForPlot = filteredSubjects
       .sort(([, a], [, b]) => b.total - a.total)
       .map(([subject, data]) => {
-        // topKeyword for the filtered measures
         let topKeyword = 'N/A';
         let bestRank = Infinity;
         data.keywords.forEach(keyword => {
@@ -126,12 +128,10 @@ export function processData(data, selectedKeyword = null) {
         };
       });
   } else {
-    // When no keyword is selected, revert to top 25 measures by total votes
     pieDataForPlot = Object.entries(allSubjectVotes)
       .sort(([, a], [, b]) => b.total - a.total)
-      .slice(0, 25) // <--- ADDED SLICE TO GET TOP 25
+      .slice(0, 25)
       .map(([subject, data]) => {
-        // This recalculates topKeyword for the top 25 unfiltered measures
         let topKeyword = 'N/A';
         let bestRank = Infinity;
         data.keywords.forEach(keyword => {
@@ -155,11 +155,11 @@ export function processData(data, selectedKeyword = null) {
 
   return {
     histData,
-    subjectVotes: pieDataForPlot, // <--- Now subjectVotes always returns the processed array
+    subjectVotes: pieDataForPlot,
     streamGraphData,
     keywordCounts,
     filteredKeywordCounts,
-    topKeywords: adjustedTopKeywords,
-    pieFilteredByKeyword: pieDataForPlot // Both now point to the same final data for the pie
+    topKeywords: adjustedTopKeywords, // This will now correctly contain the dynamic list for the legend
+    pieFilteredByKeyword: pieDataForPlot
   };
 }

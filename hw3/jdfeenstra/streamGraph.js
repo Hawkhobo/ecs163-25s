@@ -1,10 +1,34 @@
 export function createStream(svg, data, options) {
-  // Destructure new options: selectedKeyword and onStreamClick
   const { margin, width, height, xPosition, yPosition, topKeywords, selectedKeyword, onStreamClick } = options;
 
-  // Add a class for easy removal by main.js
+  // --- ADD SVG FILTER DEFINITION HERE ---
+  const defs = svg.select("defs");
+  const filter = defs.empty() ? svg.append("defs").append("filter") : defs.select("#glow-filter");
+
+  if (filter.empty() || filter.attr("id") !== "glow-filter") {
+      svg.append("defs")
+         .append("filter")
+         .attr("id", "glow-filter")
+         .attr("x", "-50%") // Adjust filter area to cover potential blur
+         .attr("y", "-50%")
+         .attr("width", "200%")
+         .attr("height", "200%")
+         .append("feGaussianBlur")
+         .attr("stdDeviation", "2") // Adjust blur amount here
+         .attr("result", "glow");
+
+      // Optional: add a feMerge to stack the glow with the original text
+      svg.select("#glow-filter")
+         .append("feMerge")
+         .append("feMergeNode")
+         .attr("in", "glow");
+      svg.select("#glow-filter feMerge")
+         .append("feMergeNode")
+         .attr("in", "SourceGraphic");
+  }
+
   const g = svg.append("g")
-      .attr("class", "stream-group") // <--- ADDED CLASS
+      .attr("class", "stream-group")
       .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`);
 
   const years = Array.from(new Set(data.flatMap(d => d.years.map(y => y.year))));
@@ -16,8 +40,7 @@ export function createStream(svg, data, options) {
 
   const stackedDataInput = years.map(year => {
     const yearData = { year: year };
-    // Use the `topKeywords` passed in options, which is potentially adjusted by main.js
-    topKeywords.forEach(keyword => { // <--- USE topKeywords FROM OPTIONS
+    topKeywords.forEach(keyword => {
       const keywordEntry = data.find(item => item.keyword === keyword);
       yearData[keyword] = keywordEntry?.years.find(y => y.year === year)?.count || 0;
     });
@@ -25,7 +48,7 @@ export function createStream(svg, data, options) {
   });
 
   const stack = d3.stack()
-    .keys(topKeywords) // <--- USE topKeywords FROM OPTIONS
+    .keys(topKeywords)
     .value((d, key) => d[key] || 0);
 
   const stackedSeries = stack(stackedDataInput);
@@ -55,7 +78,6 @@ export function createStream(svg, data, options) {
       }))
     }));
 
-  // Create a tooltip div (select existing or create if not present)
   const tooltip = d3.select("body").select(".stream-tooltip");
   if (tooltip.empty()) {
       d3.select("body").append("div")
@@ -70,7 +92,6 @@ export function createStream(svg, data, options) {
           .style("pointer-events", "none");
   }
 
-
   const bisectYear = d3.bisector(d => d.data.year).left;
 
   g.selectAll(".layer")
@@ -81,27 +102,22 @@ export function createStream(svg, data, options) {
       .attr("fill", d => d.color)
       .attr("stroke", "black")
       .attr("stroke-width", 0.1)
-      // --- ADD HIGHLIGHTING BASED ON selectedKeyword ---
-      // If a keyword is selected, only highlight that one, others will be dimmed
-      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0) // Dim unselected
-      .classed("selected-stream", d => d.key === selectedKeyword) // <--- ADDED HIGHLIGHT CLASS
-      // --- ADD CLICK HANDLER FOR RESET ---
+      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0)
+      .classed("selected-stream", d => d.key === selectedKeyword)
       .on("click", function(event, d) {
           if (onStreamClick) {
-              onStreamClick(); // Notify main.js to reset
+              onStreamClick();
           }
       })
       .on("mouseover", function(event, d) {
           d3.select(this).raise();
-          d3.select(this).style("cursor", "pointer"); // Add pointer cursor
-          // Only change opacity for current hover if no specific keyword is selected
+          d3.select(this).style("cursor", "pointer");
           if (!selectedKeyword) {
-            d3.select(this).style("fill-opacity", 0.7); // Light highlight
+            d3.select(this).style("fill-opacity", 0.7);
           } else if (d.key === selectedKeyword) {
-            // Keep selected item highlighted on hover
             d3.select(this).style("fill-opacity", 0.7);
           } else {
-            // Do not change opacity for other streams if a keyword is selected
+            // No change for others
           }
           tooltip.transition()
               .duration(200)
@@ -128,14 +144,13 @@ export function createStream(svg, data, options) {
           }
       })
       .on("mouseout", function(event, d) {
-          d3.select(this).style("cursor", "default"); // Reset cursor
-          // Only reset opacity if no specific keyword is selected
+          d3.select(this).style("cursor", "default");
           if (!selectedKeyword) {
-            d3.select(this).style("fill-opacity", 1.0); // Remove highlight
+            d3.select(this).style("fill-opacity", 1.0);
           } else if (d.key === selectedKeyword) {
-            d3.select(this).style("fill-opacity", 1.0); // Keep selected item at full opacity
+            d3.select(this).style("fill-opacity", 1.0);
           } else {
-            d3.select(this).style("fill-opacity", 0.3); // Keep unselected items dimmed
+            d3.select(this).style("fill-opacity", 0.3);
           }
           tooltip.transition()
               .duration(500)
@@ -149,17 +164,12 @@ export function createStream(svg, data, options) {
   g.append("g")
       .call(d3.axisLeft(y));
 
-  // --- Stream Graph Legend ---
-  // Ensure the legend element can be removed by main.js if needed or updated
+  // --- Legend Rendering Logic ---
+  // Ensure the legend group is always present and correctly positioned
   const legendGroup = svg.select(".stream-legend");
-  if (legendGroup.empty()) {
-      svg.append("g")
-        .attr("class", "stream-legend") // <--- ADDED CLASS for stream legend
-  }
+  const legendG = legendGroup.empty() ? svg.append("g").attr("class", "stream-legend") : legendGroup;
+  legendG.attr("transform", `translate(${xPosition + width - 1425}, ${yPosition + 15})`);
 
-  // This transform now correctly uses `xPosition` and `yPosition` from options
-  // and `width` (which is streamWidth) to position relative to the stream graph.
-  legendGroup.attr("transform", `translate(${xPosition + width - 1425}, ${yPosition + 15})`);
 
   const legendScaleFactor = 0.75;
   const originalRectSize = 12;
@@ -168,14 +178,13 @@ export function createStream(svg, data, options) {
 
   const reversedLayers = [...layers].reverse();
 
-  // Update or remove legend items based on selection
-  legendGroup.selectAll(".legend-item")
+  legendG.selectAll(".legend-item") // Use legendG here
       .data(reversedLayers)
       .join(
           enter => {
               const item = enter.append("g")
                   .attr("class", "legend-item")
-                  .attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`); // Apply scale here
+                  .attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`);
 
               item.append("rect")
                   .attr("x", 0)
@@ -188,7 +197,7 @@ export function createStream(svg, data, options) {
                   .attr("x", originalRectSize + originalSpacing)
                   .attr("y", originalRectSize / 2)
                   .attr("dy", "0.35em")
-                  .style("font-size", "1em") // Keep font size 1em and let scale handle it
+                  .style("font-size", "1em")
                   .text(d => d.key);
               return item;
           },
@@ -197,9 +206,8 @@ export function createStream(svg, data, options) {
               .select("rect").attr("fill", d => d.color),
           exit => exit.remove()
       )
-      // Apply opacity to legend items based on selection
-      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0);
-
-
+      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0)
+      // --- Stream Legend Highlighting ---
+      .classed("selected-legend-item", d => d.key === selectedKeyword);
   return g;
 }

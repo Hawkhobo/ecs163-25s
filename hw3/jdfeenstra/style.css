@@ -1,39 +1,51 @@
 /* General styling for tooltips */
 .tooltip {
-    /* Existing tooltip styles */
-    z-index: 1000; /* Ensure tooltip is on top */
+    z-index: 1000;
 }
 
 /* Histogram bar highlighting */
 .bar.selected-bar {
     stroke: darkorange;
     stroke-width: 3px;
-    filter: brightness(1.2); /* Make it slightly brighter */
+    filter: brightness(1.2);
 }
 
 /* Pie chart highlighting */
-.pie-group.highlighted-pie .arc {
-    /* You could add a border or shadow to the whole group */
-    /* Or, if you want only the relevant slices highlighted,
-       you'd add .classed("selected-slice", true) to the arcs directly.
-       For now, the entire group is highlighted. */
+.pie-group.highlighted-pie {
+    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    overflow: hidden;
 }
 
 /* Stream graph highlighting */
 .layer.selected-stream {
     stroke: gold;
     stroke-width: 2px;
-    filter: brightness(1.2); /* Make it slightly brighter */
-    opacity: 1.0 !important; /* Override opacity if dimmed by others */
+    filter: brightness(1.2);
+    opacity: 1.0 !important;
 }
-
-/* Dimming for unselected streams */
-/* This is handled in JS with `style("opacity", ...)`
-   but you could also use a CSS rule for `.stream-group .layer:not(.selected-stream)` */
 
 /* Cursor changes for interactive elements */
 .bar:hover,
 .arc:hover,
 .layer:hover {
     cursor: pointer;
+}
+
+/* --- Stream Legend Item Highlighting --- */
+.legend-item.selected-legend-item {
+    font-weight: bold;
+    /* fill: black;  This was already default. Can remove if you want default color */
+    /* text-shadow: 0 0 5px rgba(255, 255, 0, 0.7); Moved this to the text element directly */
+}
+
+.legend-item.selected-legend-item text { /* <--- TARGET THE TEXT ELEMENT */
+    filter: url(#glow-filter);
+    fill: black; 
+}
+
+.legend-item.selected-legend-item rect {
+    stroke: gold;
+    stroke-width: 2px; /* Slightly thicker border for rectangle */
+    filter: brightness(1.2); /* Make the rectangle brighter too */
 }

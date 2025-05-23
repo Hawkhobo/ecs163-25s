@@ -5,8 +5,7 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
       .attr("class", "pie-group")
       .attr("transform", `translate(${left + radius}, ${top + radius})`);
 
-  // subjectVoteData is now always the pre-processed array from processData.js
-  const processedPieData = subjectVoteData; // <--- SIMPLIFIED THIS LINE
+  const processedPieData = subjectVoteData;
 
   const pie = d3.pie()
     .value(d => d.totalVotes);
@@ -89,18 +88,20 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
   }
 
 
+  // --- Legend Rendering Logic ---
+  // Ensure the legend group is always present and correctly positioned
   const legendGroup = svg.select(".pie-legend");
-  if (legendGroup.empty()) {
-      svg.append("g")
-        .attr("class", "pie-legend")
-        .attr("transform", `translate(${left + radius - 700}, ${top})`);
-  }
-  
+  const legendG = legendGroup.empty() ? svg.append("g").attr("class", "pie-legend") : legendGroup;
+  legendG.attr("transform", `translate(${left + radius - 700}, ${top})`);
+
+
   if (selectedKeyword) {
-      legendGroup.selectAll(".legend-item").remove();
+      // If a keyword is selected, remove all legend items
+      legendG.selectAll(".legend-item").remove(); // Use legendG here
   } else {
+      // If no keyword is selected, update/create legend items
       const uniqueKeywords = [...new Set(processedPieData.map(d => d.topKeyword))];
-      legendGroup.selectAll(".legend-item")
+      legendG.selectAll(".legend-item") // Use legendG here
         .data(uniqueKeywords)
         .join(
           enter => enter.append("g")
@@ -117,10 +118,10 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
                 .attr("dy", "0.35em")
                 .text(d => d);
             }),
-          update => update
+          update => update // Update existing items if data changes
             .attr("transform", (d, i) => `translate(0, ${i * 20})`)
             .select("rect").attr("fill", colorScale),
-          exit => exit.remove()
+          exit => exit.remove() // Remove old items
         );
   }
 
