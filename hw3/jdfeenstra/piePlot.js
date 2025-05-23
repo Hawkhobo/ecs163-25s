@@ -1,4 +1,5 @@
 import { pieLegendXOffset, pieLegendYOffset, labelTextPosX, labelTextPosY, countTextPosX, countTextPosY, pieHeaderX, pieHeaderY} from './dimensions.js';
+import { updateVizHeader } from './updateVizHeader.js';
 
 export function createPie(svg, subjectVoteData, histData, allKeywordCounts, options) {
   const { radius, left, top, selectedKeyword, onPieClick, selectedKeywordColor } = options;
@@ -150,8 +151,12 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
   }
 
   // update Header for pie chart transition
-  const title = selectedKeyword ? `Top ${selectedKeyword} Measures by Votes` : "Top 25 Measures by Votes";
-  updatePieHeader(g, title);
+  updateVizHeader(
+    g,
+    selectedKeyword ? `Top ${selectedKeyword} Measures by Votes` : "Top 25 Measures by Votes",
+    pieHeaderX,
+    pieHeaderY
+  );
 
   // Handle legend transitions
   updateLegendWithTransitions(svg, left, top, radius, selectedKeyword, selectedKeywordColor, processedPieData, colorScale);

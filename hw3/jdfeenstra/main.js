@@ -25,7 +25,7 @@ headerGroup.append("text")
     .attr("text-anchor", "middle")
     .attr("y", 30)
     .style("font-size", "1em")
-    .text("A visualization of historical ballot measures and their key topics.");
+    .text("A visualization of historical ballot measures and their key topics. Mouse-over and click on histogram bins to get started!");
 
 
 let originalData = null; // Store the raw CSV data once loaded

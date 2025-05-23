@@ -1,4 +1,6 @@
-import { streamLegendXOffset, streamLegendYOffset, legendScaleFactor, streamRectSize } from './dimensions.js';
+import { streamLegendXOffset, streamLegendYOffset, legendScaleFactor, streamRectSize, streamHeaderX, streamHeaderY } from './dimensions.js';
+
+import { updateVizHeader } from './updateVizHeader.js'
 
 export function createStream(svg, data, options) {
   const { margin, width, height, xPosition, yPosition, topKeywords, selectedKeyword, onStreamClick } = options;
@@ -270,6 +272,14 @@ export function createStream(svg, data, options) {
   g.append("g")
       .attr("class", "axis axis-y")
       .call(d3.axisLeft(y));
+
+  // add a header
+  updateVizHeader(
+    g,
+    selectedKeyword ? `${selectedKeyword} Measures Over The Years` : "Top 30 Keyword Trends",
+    streamHeaderX,
+    streamHeaderY
+  );
 
   // Update legend with transitions
   updateStreamLegendWithTransitions(svg, layers, selectedKeyword, xPosition, yPosition, width);

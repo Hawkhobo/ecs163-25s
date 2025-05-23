@@ -35,3 +35,6 @@ export const streamLegendXOffset = 1570;
 export const streamLegendYOffset = 50; 
 export const streamRectSize = 8;
 export const legendScaleFactor = 0.8;
+
+export const streamHeaderX = 500;
+export const streamHeaderY = 150;
