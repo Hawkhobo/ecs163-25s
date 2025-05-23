@@ -1,6 +1,10 @@
 export function createStream(svg, data, options) {
-  const { margin, width, height, xPosition, yPosition, topKeywords } = options;
+  // Destructure new options: selectedKeyword and onStreamClick
+  const { margin, width, height, xPosition, yPosition, topKeywords, selectedKeyword, onStreamClick } = options;
+
+  // Add a class for easy removal by main.js
   const g = svg.append("g")
+      .attr("class", "stream-group") // <--- ADDED CLASS
       .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`);
 
   const years = Array.from(new Set(data.flatMap(d => d.years.map(y => y.year))));
@@ -12,7 +16,8 @@ export function createStream(svg, data, options) {
 
   const stackedDataInput = years.map(year => {
     const yearData = { year: year };
-    topKeywords.forEach(keyword => {
+    // Use the `topKeywords` passed in options, which is potentially adjusted by main.js
+    topKeywords.forEach(keyword => { // <--- USE topKeywords FROM OPTIONS
       const keywordEntry = data.find(item => item.keyword === keyword);
       yearData[keyword] = keywordEntry?.years.find(y => y.year === year)?.count || 0;
     });
@@ -20,7 +25,7 @@ export function createStream(svg, data, options) {
   });
 
   const stack = d3.stack()
-    .keys(topKeywords)
+    .keys(topKeywords) // <--- USE topKeywords FROM OPTIONS
     .value((d, key) => d[key] || 0);
 
   const stackedSeries = stack(stackedDataInput);
@@ -50,16 +55,21 @@ export function createStream(svg, data, options) {
       }))
     }));
 
-  const tooltip = d3.select("body").append("div")
-    .attr("class", "stream-tooltip")
-    .style("opacity", 0)
-    .style("position", "absolute")
-    .style("background-color", "white")
-    .style("border", "solid")
-    .style("border-width", "1px")
-    .style("border-radius", "5px")
-    .style("padding", "8px")
-    .style("pointer-events", "none");
+  // Create a tooltip div (select existing or create if not present)
+  const tooltip = d3.select("body").select(".stream-tooltip");
+  if (tooltip.empty()) {
+      d3.select("body").append("div")
+          .attr("class", "stream-tooltip tooltip")
+          .style("opacity", 0)
+          .style("position", "absolute")
+          .style("background-color", "white")
+          .style("border", "solid")
+          .style("border-width", "1px")
+          .style("border-radius", "5px")
+          .style("padding", "8px")
+          .style("pointer-events", "none");
+  }
+
 
   const bisectYear = d3.bisector(d => d.data.year).left;
 
@@ -71,32 +81,35 @@ export function createStream(svg, data, options) {
       .attr("fill", d => d.color)
       .attr("stroke", "black")
       .attr("stroke-width", 0.1)
+      // --- ADD HIGHLIGHTING BASED ON selectedKeyword ---
+      // If a keyword is selected, only highlight that one, others will be dimmed
+      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0) // Dim unselected
+      .classed("selected-stream", d => d.key === selectedKeyword) // <--- ADDED HIGHLIGHT CLASS
+      // --- ADD CLICK HANDLER FOR RESET ---
+      .on("click", function(event, d) {
+          if (onStreamClick) {
+              onStreamClick(); // Notify main.js to reset
+          }
+      })
       .on("mouseover", function(event, d) {
           d3.select(this).raise();
-          d3.select(this).style("fill-opacity", 0.7);
+          d3.select(this).style("cursor", "pointer"); // Add pointer cursor
+          // Only change opacity for current hover if no specific keyword is selected
+          if (!selectedKeyword) {
+            d3.select(this).style("fill-opacity", 0.7); // Light highlight
+          } else if (d.key === selectedKeyword) {
+            // Keep selected item highlighted on hover
+            d3.select(this).style("fill-opacity", 0.7);
+          } else {
+            // Do not change opacity for other streams if a keyword is selected
+          }
           tooltip.transition()
               .duration(200)
               .style("opacity", .9);
       })
       .on("mousemove", function(event, d) {
-          // --- FIX FOR D3v7: Use event.offsetX or event.clientX / .offsetParent.left ---
-          // event.offsetX/offsetY gives coordinates relative to the target element (the path itself)
-          // event.clientX/clientY give coordinates relative to the viewport.
-          // To get coordinates relative to the 'g' group (which is what x.invert expects from a path),
-          // using event.offsetX on the path, then adding its x-offset within the g, or
-          // using d3.pointer(event, this) or d3.pointer(event, g.node()) is the robust way.
-          // Let's use d3.pointer(event, this) which returns [x, y] relative to the element 'this'.
-
-          const [mx, my] = d3.pointer(event, this); // <--- Use d3.pointer for D3v7
-
-          // mx is now the X coordinate relative to the *path itself*.
-          // To get the X coordinate relative to the 'g' element's coordinate system (which 'x' scale works with),
-          // we need to consider the X offset of the path within the 'g'.
-          // However, d3.pointer(event, containerNode) is often better.
-          // Let's get coordinates relative to the 'g' element to use with 'x' scale directly.
-          const [gx, gy] = d3.pointer(event, g.node()); // <--- Coordinates relative to 'g' element
-
-          const invertedX = x.invert(gx); // Convert pixel X from 'g' back to a year value
+          const [gx, gy] = d3.pointer(event, g.node());
+          const invertedX = x.invert(gx);
 
           const i = bisectYear(d.values, invertedX, 1);
           const d0 = d.values[i - 1];
@@ -115,7 +128,15 @@ export function createStream(svg, data, options) {
           }
       })
       .on("mouseout", function(event, d) {
-          d3.select(this).style("fill-opacity", 1.0);
+          d3.select(this).style("cursor", "default"); // Reset cursor
+          // Only reset opacity if no specific keyword is selected
+          if (!selectedKeyword) {
+            d3.select(this).style("fill-opacity", 1.0); // Remove highlight
+          } else if (d.key === selectedKeyword) {
+            d3.select(this).style("fill-opacity", 1.0); // Keep selected item at full opacity
+          } else {
+            d3.select(this).style("fill-opacity", 0.3); // Keep unselected items dimmed
+          }
           tooltip.transition()
               .duration(500)
               .style("opacity", 0);
@@ -128,6 +149,18 @@ export function createStream(svg, data, options) {
   g.append("g")
       .call(d3.axisLeft(y));
 
+  // --- Stream Graph Legend ---
+  // Ensure the legend element can be removed by main.js if needed or updated
+  const legendGroup = svg.select(".stream-legend");
+  if (legendGroup.empty()) {
+      svg.append("g")
+        .attr("class", "stream-legend") // <--- ADDED CLASS for stream legend
+  }
+
+  // This transform now correctly uses `xPosition` and `yPosition` from options
+  // and `width` (which is streamWidth) to position relative to the stream graph.
+  legendGroup.attr("transform", `translate(${xPosition + width - 1425}, ${yPosition + 15})`);
+
   const legendScaleFactor = 0.75;
   const originalRectSize = 12;
   const originalSpacing = 6;
@@ -135,27 +168,38 @@ export function createStream(svg, data, options) {
 
   const reversedLayers = [...layers].reverse();
 
-  const legend = g.append("g")
-      .attr("transform", `translate(${width - 1425}, +15) scale(${legendScaleFactor})`)
-      .selectAll(".legend")
+  // Update or remove legend items based on selection
+  legendGroup.selectAll(".legend-item")
       .data(reversedLayers)
-      .enter().append("g")
-      .attr("class", "legend")
-      .attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)})`);
+      .join(
+          enter => {
+              const item = enter.append("g")
+                  .attr("class", "legend-item")
+                  .attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`); // Apply scale here
 
-  legend.append("rect")
-      .attr("x", 0)
-      .attr("y", 0)
-      .attr("width", originalRectSize)
-      .attr("height", originalRectSize)
-      .attr("fill", d => d.color);
+              item.append("rect")
+                  .attr("x", 0)
+                  .attr("y", 0)
+                  .attr("width", originalRectSize)
+                  .attr("height", originalRectSize)
+                  .attr("fill", d => d.color);
 
-  legend.append("text")
-      .attr("x", originalRectSize + originalSpacing)
-      .attr("y", originalRectSize / 2)
-      .attr("dy", "0.35em")
-      .style("font-size", "1em")
-      .text(d => d.key);
+              item.append("text")
+                  .attr("x", originalRectSize + originalSpacing)
+                  .attr("y", originalRectSize / 2)
+                  .attr("dy", "0.35em")
+                  .style("font-size", "1em") // Keep font size 1em and let scale handle it
+                  .text(d => d.key);
+              return item;
+          },
+          update => update
+              .attr("transform", (d, i) => `translate(0, ${i * (originalRectSize + originalVerticalSpacing)}) scale(${legendScaleFactor})`)
+              .select("rect").attr("fill", d => d.color),
+          exit => exit.remove()
+      )
+      // Apply opacity to legend items based on selection
+      .style("opacity", d => (selectedKeyword && d.key !== selectedKeyword) ? 0.3 : 1.0);
+
 
   return g;
 }

@@ -1,0 +1,39 @@
+/* General styling for tooltips */
+.tooltip {
+    /* Existing tooltip styles */
+    z-index: 1000; /* Ensure tooltip is on top */
+}
+
+/* Histogram bar highlighting */
+.bar.selected-bar {
+    stroke: darkorange;
+    stroke-width: 3px;
+    filter: brightness(1.2); /* Make it slightly brighter */
+}
+
+/* Pie chart highlighting */
+.pie-group.highlighted-pie .arc {
+    /* You could add a border or shadow to the whole group */
+    /* Or, if you want only the relevant slices highlighted,
+       you'd add .classed("selected-slice", true) to the arcs directly.
+       For now, the entire group is highlighted. */
+}
+
+/* Stream graph highlighting */
+.layer.selected-stream {
+    stroke: gold;
+    stroke-width: 2px;
+    filter: brightness(1.2); /* Make it slightly brighter */
+    opacity: 1.0 !important; /* Override opacity if dimmed by others */
+}
+
+/* Dimming for unselected streams */
+/* This is handled in JS with `style("opacity", ...)`
+   but you could also use a CSS rule for `.stream-group .layer:not(.selected-stream)` */
+
+/* Cursor changes for interactive elements */
+.bar:hover,
+.arc:hover,
+.layer:hover {
+    cursor: pointer;
+}

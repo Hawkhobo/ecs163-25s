@@ -1,8 +1,11 @@
 export function createHist(svg, data, options) {
-  const {margin, width, height, xPosition, yPosition } = options;
+  // Destructure new options: onBarClick and selectedKeyword
+  const { margin, width, height, xPosition, yPosition, onBarClick, selectedKeyword } = options;
 
+  // Add a class for easy removal by main.js
   const g = svg.append("g")
-      .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.right})`);
+      .attr("class", "hist-group") // <--- ADDED CLASS
+      .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`);
 
   const histData = Object.entries(data).map(([key, value]) => ({
     keyword: key,
@@ -19,20 +22,25 @@ export function createHist(svg, data, options) {
     .domain([0, d3.max(histData, d => d.count)])
     .range([0, height]);
 
+  // Y-axis (counts) will be on the left.
   g.append("g")
     .call(d3.axisLeft(yScale));
 
-  // create a tooltip that is initially hidden
-  const tooltip = d3.select("body").append("div")
-    .attr("class", "tooltip")
-    .style("opacity", 0)
-    .style("position", "absolute")
-    .style("background-color", "white")
-    .style("border", "solid")
-    .style("border-width", "1px")
-    .style("border-radius", "5px")
-    .style("padding", "5px")
-    .style("pointer-events", "none");
+  // Tooltip creation (ensure this is still here if you want tooltips)
+  const tooltip = d3.select("body").select(".hist-tooltip"); // Select existing or create if not present
+  if (tooltip.empty()) {
+      d3.select("body").append("div")
+          .attr("class", "hist-tooltip tooltip") // Add "tooltip" class for general styling if desired
+          .style("opacity", 0)
+          .style("position", "absolute")
+          .style("background-color", "white")
+          .style("border", "solid")
+          .style("border-width", "1px")
+          .style("border-radius", "5px")
+          .style("padding", "5px")
+          .style("pointer-events", "none");
+  }
+
 
   g.selectAll(".bar")
     .data(histData)
@@ -43,7 +51,16 @@ export function createHist(svg, data, options) {
     .attr("y", 0)
     .attr("height", d => yScale(d.count))
     .attr("fill", "purple")
+    // --- ADD HIGHLIGHTING BASED ON selectedKeyword ---
+    .classed("selected-bar", d => d.keyword === selectedKeyword) // <--- ADDED HIGHLIGHT CLASS
+    // --- ADD CLICK EVENT LISTENER ---
+    .on("click", function(event, d) {
+        if (onBarClick) { // Ensure the callback exists
+            onBarClick(d.keyword); // Notify main.js of the clicked keyword
+        }
+    })
     .on("mouseover", function(event, d) {
+      d3.select(this).style("cursor", "pointer"); // Add pointer cursor
       tooltip.transition()
         .duration(200)
         .style("opacity", .9);
@@ -52,10 +69,11 @@ export function createHist(svg, data, options) {
         .style("top", (event.pageY - 28) + "px");
     })
     .on("mouseout", function(event, d) {
+      d3.select(this).style("cursor", "default"); // Reset cursor
       tooltip.transition()
         .duration(500)
         .style("opacity", 0);
     });
 
-    return g; 
+  return g;
 }
