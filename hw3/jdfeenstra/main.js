@@ -110,7 +110,6 @@ function renderVisualizations(data, selectedKeyword = null) {
         left: pieLeft,
         top: pieTop,
         selectedKeyword: selectedKeyword, // Pass the current selection for highlighting
-        onPieClick: handlePieClick, // Pass the callback for reset
         selectedKeywordColor: selectedKeyword ? streamGraphColorScale(selectedKeyword) : null // **NEW:** Pass the specific color
     });
 }

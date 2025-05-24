@@ -2,7 +2,7 @@ import { pieLegendXOffset, pieLegendYOffset, labelTextPosX, labelTextPosY, count
 import { updateVizHeader } from './updateVizHeader.js';
 
 export function createPie(svg, subjectVoteData, histData, allKeywordCounts, options) {
-  const { radius, left, top, selectedKeyword, onPieClick, selectedKeywordColor } = options;
+  const { radius, left, top, selectedKeyword, selectedKeywordColor } = options;
 
   // Get or create the main group
   let g = svg.select(".pie-group");
@@ -129,13 +129,6 @@ export function createPie(svg, subjectVoteData, histData, allKeywordCounts, opti
         .duration(500)
         .style("opacity", 0);
     });
-
-  // Handle pie group click
-  g.on("click", function() {
-    if (onPieClick) {
-      onPieClick();
-    }
-  });
 
   // Update pie group highlighting with transition
   if (selectedKeyword) {

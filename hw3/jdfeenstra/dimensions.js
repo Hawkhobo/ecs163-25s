@@ -7,7 +7,7 @@
  export const footnoteHeight = 130;
  export const footnotePadding = 10;
 
- export const histX = 1;
+ export const histX = -15;
  export const histY = 60;
  export const histWidth = 1775;
  export const histHeight = 850;
@@ -38,7 +38,7 @@ export const countTextPosY = -125;
 
 
 export const streamLegendXOffset = 1572; 
-export const streamLegendYOffset = 70; 
+export const streamLegendYOffset = 55; 
 export const streamRectSize = 8;
 export const legendScaleFactor = 0.8;
 

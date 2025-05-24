@@ -26,6 +26,16 @@ export function createHist(svg, data, options) {
   g.append("g")
     .call(d3.axisLeft(yScale));
 
+  // Y-axis label
+  g.append("text")
+      .attr("class", "axis-label y-axis-label")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -height / 2)
+      .attr("y", -30) // adjust distance left of y-axis as needed
+      .attr("text-anchor", "middle")
+      .style("font-size", "12px")
+      .text("Total Keyword Counts");
+
   // Tooltip creation (ensure this is still here if you want tooltips)
   const tooltip = d3.select("body").select(".hist-tooltip"); // Select existing or create if not present
   if (tooltip.empty()) {

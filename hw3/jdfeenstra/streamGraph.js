@@ -280,7 +280,7 @@ export function createStream(svg, data, options) {
       .attr("y", height + 30) 
       .attr("text-anchor", "middle")
       .style("font-size", "12px")
-      .text("Year");
+      .text("Years");
 
   // Y-axis label
   g.append("text")
@@ -290,7 +290,7 @@ export function createStream(svg, data, options) {
       .attr("y", -25) // adjust distance left of y-axis as needed
       .attr("text-anchor", "middle")
       .style("font-size", "12px")
-      .text("Keyword Count");
+      .text("Keyword Counts");
 
   // add a header
   updateVizHeader(
