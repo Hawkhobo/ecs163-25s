@@ -1,3 +1,4 @@
+// generic function to both create AND update the visualization header for both the stream graph and the pie chart (dependent on if a histogram bin is selected)
 export function updateVizHeader(g, title, x, y) {
   let headerText = g.select(".viz-header");
 

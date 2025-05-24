@@ -1,10 +1,9 @@
 export function createHist(svg, data, options) {
-  // Destructure new options: onBarClick and selectedKeyword
   const { margin, width, height, xPosition, yPosition, onBarClick, selectedKeyword } = options;
 
   // Add a class for easy removal by main.js
   const g = svg.append("g")
-      .attr("class", "hist-group") // <--- ADDED CLASS
+      .attr("class", "hist-group") 
       .attr("transform", `translate(${xPosition + margin.left}, ${yPosition + margin.top})`);
 
   const histData = Object.entries(data).map(([key, value]) => ({
@@ -31,7 +30,7 @@ export function createHist(svg, data, options) {
       .attr("class", "axis-label y-axis-label")
       .attr("transform", "rotate(-90)")
       .attr("x", -height / 2)
-      .attr("y", -30) // adjust distance left of y-axis as needed
+      .attr("y", -30) 
       .attr("text-anchor", "middle")
       .style("font-size", "12px")
       .text("Total Keyword Counts");
@@ -62,7 +61,7 @@ export function createHist(svg, data, options) {
     .attr("height", d => yScale(d.count))
     .attr("fill", "purple")
     // --- ADD HIGHLIGHTING BASED ON selectedKeyword ---
-    .classed("selected-bar", d => d.keyword === selectedKeyword) // <--- ADDED HIGHLIGHT CLASS
+    .classed("selected-bar", d => d.keyword === selectedKeyword) 
     // --- ADD CLICK EVENT LISTENER ---
     .on("click", function(event, d) {
         if (onBarClick) { // Ensure the callback exists

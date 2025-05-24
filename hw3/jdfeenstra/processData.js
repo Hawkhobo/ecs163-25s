@@ -38,13 +38,13 @@ export function processData(data, selectedKeyword = null) {
     }
   }
 
+  // histogram data processing
   const histData = Object.entries(filteredKeywordCounts).map(([key, value]) => ({
     keyword: key,
     count: value
   }));
   histData.sort((a, b) => b.count - a.count);
 
-  // --- Stream Graph Data Adjustment (FINAL AND CORRECTED LOGIC) ---
   const initialTop30Keywords = Object.entries(keywordCounts)
     .sort(([, countA], [, countB]) => countB - countA)
     .slice(0, 30)
@@ -97,7 +97,7 @@ export function processData(data, selectedKeyword = null) {
     return keywordData;
   });
 
-  // --- Pie Chart Data Adjustment ---
+  // -- Pie Chart Data Processing --
   let pieDataForPlot;
 
   if (selectedKeyword) {
@@ -152,14 +152,15 @@ export function processData(data, selectedKeyword = null) {
         };
       });
   }
-
+  // Stream Graph data is not really processed here; it is derived directly from the histogram, with some moderate adjustments in streamGraph.js
+  
   return {
     histData,
     subjectVotes: pieDataForPlot,
     streamGraphData,
     keywordCounts,
     filteredKeywordCounts,
-    topKeywords: adjustedTopKeywords, // This will now correctly contain the dynamic list for the legend
+    topKeywords: adjustedTopKeywords, 
     pieFilteredByKeyword: pieDataForPlot
   };
 }

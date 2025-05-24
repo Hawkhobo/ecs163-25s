@@ -4,7 +4,7 @@ import { createStream } from './streamGraph.js';
 import { processData } from './processData.js';
 import { width, height, histX, histY, histWidth, histHeight, histMargin, pieRadius, pieLeft, pieTop, streamX, streamY, streamWidth, streamHeight, streamMargin, footnoteX, footnoteY, footnoteWidth, footnoteHeight, footnotePadding} from './dimensions.js';
 
-const csvFilePath = 'List_of_Historical_Ballot_Measures.csv'; // Keeping your exact CSV path
+const csvFilePath = 'List_of_Historical_Ballot_Measures.csv'; 
 
 // Create SVG container (ensure it's only created once)
 const svg = d3.select("body").append("svg")
@@ -58,13 +58,23 @@ footnoteGroup.append("xhtml:div")
 
 let originalData = null; // Store the raw CSV data once loaded
 let currentSelectedKeyword = null; // State variable for the clicked keyword
-let streamGraphColorScale = null; // **NEW:** Variable to store the color scale from streamGraph
+let streamGraphColorScale = null; // Variable to store the color scale from streamGraph
+
+// Load data and initial render
+d3.csv(csvFilePath)
+    .then(data => {
+        originalData = data; // Store raw data
+        renderVisualizations(originalData); // Initial render without selection
+    })
+    .catch(error => {
+        console.error("Error loading or processing data:", error);
+    });
 
 // Function to render all visualizations
 function renderVisualizations(data, selectedKeyword = null) {
     // Clear existing visualizations before re-rendering
     // This is crucial to avoid drawing multiple charts on top of each other
-    svg.selectAll(".hist-group, .pie-group, .pie-legend, .stream-group, .stream-overlay-group, .stream-legend").remove(); // **MODIFIED:** Added .pie-legend, .stream-overlay-group, .stream-legend for complete clearing
+    svg.selectAll(".hist-group, .pie-group, .pie-legend, .stream-group, .stream-overlay-group, .stream-legend").remove(); 
 
     // Process data based on the selected keyword
     const processed = processData(data, selectedKeyword);
@@ -74,7 +84,7 @@ function renderVisualizations(data, selectedKeyword = null) {
         streamGraphData,
         keywordCounts,
         filteredKeywordCounts,
-        topKeywords, // This will be the potentially adjusted topKeywords for stream
+        topKeywords, 
     } = processed;
 
     // Plot 1: Histogram
@@ -85,8 +95,8 @@ function renderVisualizations(data, selectedKeyword = null) {
         height: histHeight,
         xPosition: histX,
         yPosition: histY,
-        onBarClick: handleHistogramClick, // Pass the callback
-        selectedKeyword: selectedKeyword // Pass the current selection for highlighting
+        onBarClick: handleHistogramClick, 
+        selectedKeyword: selectedKeyword 
     });
 
     // Plot 3: Stream Graph (Rendered before Pie to get its color scale)
@@ -97,11 +107,11 @@ function renderVisualizations(data, selectedKeyword = null) {
         height: streamHeight,
         xPosition: streamX,
         yPosition: streamY,
-        topKeywords: topKeywords, // Use the potentially adjusted topKeywords
-        selectedKeyword: selectedKeyword, // Pass the current selection for highlighting
-        onStreamClick: handleStreamClick // Pass the callback for reset
+        topKeywords: topKeywords, 
+        selectedKeyword: selectedKeyword, 
+        onStreamClick: handleStreamClick 
     });
-    streamGraphColorScale = streamGraphResult.color; // **NEW:** Store the color scale for pie chart use
+    streamGraphColorScale = streamGraphResult.color; 
 
     // Plot 2: Pie Chart
     // Pass the dynamically filtered data and the selectedKeyword for highlighting
@@ -109,8 +119,8 @@ function renderVisualizations(data, selectedKeyword = null) {
         radius: pieRadius,
         left: pieLeft,
         top: pieTop,
-        selectedKeyword: selectedKeyword, // Pass the current selection for highlighting
-        selectedKeywordColor: selectedKeyword ? streamGraphColorScale(selectedKeyword) : null // **NEW:** Pass the specific color
+        selectedKeyword: selectedKeyword, 
+        selectedKeywordColor: selectedKeyword ? streamGraphColorScale(selectedKeyword) : null 
     });
 }
 
@@ -142,14 +152,3 @@ function handleStreamClick() {
         renderVisualizations(originalData, currentSelectedKeyword);
     }
 }
-
-
-// Load data and initial render
-d3.csv(csvFilePath)
-    .then(data => {
-        originalData = data; // Store raw data
-        renderVisualizations(originalData); // Initial render without selection
-    })
-    .catch(error => {
-        console.error("Error loading or processing data:", error);
-    });

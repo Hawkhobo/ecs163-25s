@@ -144,7 +144,7 @@ export function createStream(svg, data, options) {
           d3.select(this)
             .transition()
             .duration(200)
-            .style("opacity", 0.4); // Slightly more visible on hover
+            .style("opacity", 0.4); 
         }
 
         // Tooltip logic
@@ -262,7 +262,7 @@ export function createStream(svg, data, options) {
     });
 
   // Add axes
-  g.selectAll(".axis").remove(); // Remove old axes
+  g.selectAll(".axis").remove(); 
   
   g.append("g")
       .attr("class", "axis axis-x")
@@ -287,7 +287,7 @@ export function createStream(svg, data, options) {
       .attr("class", "axis-label y-axis-label")
       .attr("transform", "rotate(-90)")
       .attr("x", -height / 2)
-      .attr("y", -25) // adjust distance left of y-axis as needed
+      .attr("y", -25) 
       .attr("text-anchor", "middle")
       .style("font-size", "12px")
       .text("Keyword Counts");

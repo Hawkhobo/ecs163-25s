@@ -1,3 +1,5 @@
+// Dimensional attributes for all 3 visualizations, and the footnote, and the svg itself
+
  export const width = window.innerWidth;
  export const height = window.innerHeight;
 

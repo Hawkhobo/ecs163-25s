@@ -255,8 +255,8 @@ function updateTotalVotesDisplay(svg, left, top, radius, processedPieData) {
   const totalVotes = processedPieData.reduce((sum, d) => sum + d.totalVotes, 0);
   
   // Position the text to the right of the pie chart
-  const textX = left + radius * 2 + 20; // 20px padding from pie edge
-  const textY = top + radius - 10; // Slightly above center
+  const textX = left + radius * 2 + 20; 
+  const textY = top + radius - 10; 
   
   // Get or create the total votes groupI have a couple D3 visualizations.
   let totalVotesGroup = svg.select(".total-votes-group");
@@ -289,7 +289,7 @@ function updateTotalVotesDisplay(svg, left, top, radius, processedPieData) {
       .text("0");
   }
 
-  // Animate the number change
+  // Animate the number change (from total count to total count for different pie charts
   countText
     .transition()
     .duration(750)
